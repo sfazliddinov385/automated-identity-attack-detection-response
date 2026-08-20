@@ -239,11 +239,6 @@ For a production environment, I would add:
 - Additional detection tuning to reduce false positives
 - Recovery procedures for accounts disabled incorrectly
 
-## Ethical use
-
-The testing scripts in this repository are intended only for systems you own or are explicitly authorized to test.
-
-I performed the simulation on an isolated VMware network against accounts created specifically for this project. Do not run the password-spraying simulation against production systems or third-party infrastructure.
 
 ## Author
 
