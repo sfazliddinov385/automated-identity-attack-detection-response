@@ -1,0 +1,16 @@
+[Unit]
+Description=Splunk to Shuffle SOAR Password-Spraying Connector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.soar-connector/splunk_to_shuffle.py --lookback=-10m --interval=60
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
+

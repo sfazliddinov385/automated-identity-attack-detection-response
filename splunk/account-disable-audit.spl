@@ -1,0 +1,8 @@
+search index=wineventlog host="WIN-3B0FE43Q9UR"
+sourcetype="WinEventLog:Security" EventCode=4725 earliest=-30m latest=now
+| eval disabled_user=mvindex(
+    mvfilter(match(Account_Name,"^spray\.user[0-9]+$")),0)
+| where isnotnull(disabled_user)
+| sort 0 _time
+| table _time host EventCode disabled_user Account_Name SubjectUserName
+

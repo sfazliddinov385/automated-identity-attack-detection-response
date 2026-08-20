@@ -1,0 +1,38 @@
+# Secrets and local credentials
+*.key
+*.password
+*.pem
+*.pfx
+*.crt
+.env
+credentials*
+secrets/
+webhook.url
+webhook-header.txt
+
+# Runtime state and logs
+state.json
+*.log
+*.pid
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# PowerShell and editor artifacts
+*.clixml
+.vscode/
+.idea/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Shuffle/OpenSearch local data
+shuffle-database/
+shuffle-apps/
+shuffle-files/
+

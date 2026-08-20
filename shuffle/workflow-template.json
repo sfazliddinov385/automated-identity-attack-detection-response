@@ -1,0 +1,91 @@
+{
+  "template_type": "sanitized_shuffle_workflow_reference",
+  "template_version": "1.0",
+  "name": "AD Password Spraying Detection and Response",
+  "description": "Receive a normalized Splunk detection, validate response policy, and call the restricted Active Directory responder.",
+  "mitre_attack": {
+    "technique_id": "T1110.003",
+    "technique_name": "Password Spraying"
+  },
+  "important_note": "This is a sanitized design template. Shuffle webhook, app, action, and authentication identifiers are installation-specific and intentionally omitted.",
+  "alert_contract": {
+    "detection": "Password Spraying Detected",
+    "severity": "High",
+    "event_time": "ISO-8601 UTC timestamp",
+    "first_seen": "ISO-8601 UTC timestamp",
+    "source_ip": "RFC1918 source address",
+    "source_host": "Windows endpoint hostname",
+    "domain": "LAB",
+    "targeted_accounts": 5,
+    "failed_attempts": 5,
+    "targeted_users": [
+      "spray.user01",
+      "spray.user02",
+      "spray.user03",
+      "spray.user04",
+      "spray.user05"
+    ],
+    "mitre_technique": "T1110.003",
+    "status": "New"
+  },
+  "nodes": [
+    {
+      "order": 1,
+      "name": "Webhook",
+      "type": "trigger",
+      "authentication_header": "X-SOAR-LAB-KEY=<stored-outside-git>"
+    },
+    {
+      "order": 2,
+      "name": "Receive Splunk Alert",
+      "type": "Shuffle Tools: repeat_back_to_me",
+      "input": "$exec"
+    },
+    {
+      "order": 3,
+      "name": "Validate High-Risk Alert",
+      "type": "Shuffle Tools: repeat_back_to_me",
+      "input": "$receive_splunk_alert",
+      "all_conditions_required": true,
+      "conditions": [
+        {
+          "source": "$receive_splunk_alert.severity",
+          "operator": "equals",
+          "destination": "High"
+        },
+        {
+          "source": "$receive_splunk_alert.targeted_accounts",
+          "operator": "larger than",
+          "destination": 4
+        },
+        {
+          "source": "$receive_splunk_alert.detection",
+          "operator": "equals",
+          "destination": "Password Spraying Detected"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "name": "Disable Compromised Lab Accounts",
+      "type": "HTTP POST",
+      "url": "http://<DC-01>:8081/disable-users",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-SOAR-RESPONSE-KEY": "<stored-outside-git>"
+      },
+      "body": "$validate_high-risk_alert",
+      "expected_status": 200
+    }
+  ],
+  "security_controls": [
+    "Authenticated webhook",
+    "Three-condition response gate",
+    "Separate response-service secret",
+    "SOAR source-IP firewall restriction",
+    "Exact account allowlist",
+    "Active Directory OU boundary",
+    "Dry-run-first validation"
+  ]
+}
+
