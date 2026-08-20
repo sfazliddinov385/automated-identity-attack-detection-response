@@ -6,6 +6,8 @@ The final step verifies that the response actually happened by searching Splunk 
 
 > **Project status:** Successfully completed and tested end to end on August 20, 2026.
 
+![Final Shuffle SOAR workflow](evidence/07-final-workflow-architecture.png)
+
 ## Technologies used
 
 - Splunk Enterprise
@@ -34,6 +36,8 @@ The final step verifies that the response actually happened by searching Splunk 
 
 ## Lab architecture
 
+![Lab architecture diagram](diagrams/architecture-diagram.png)
+
 | System | Role in the lab | IP address |
 | --- | --- | --- |
 | VICTIM-B | Generates controlled failed-logon events | `192.168.226.133` |
@@ -55,6 +59,8 @@ Splunk looks for the following behavior:
 4. The attempts occur within a rolling five-minute window.
 
 The complete SPL detection is available in [`splunk/password-spraying-detection.spl`](splunk/password-spraying-detection.spl).
+
+![Splunk password-spraying detection](evidence/01-splunk-password-spraying-detection.png)
 
 ## SIEM-to-SOAR workflow
 
@@ -132,6 +138,50 @@ During the final end-to-end test:
 | Active Directory containment | [Disabled lab accounts](evidence/05-active-directory-accounts-disabled.png) |
 | Splunk audit verification | [Event ID 4725 results](evidence/06-splunk-response-audit-4725.png) |
 | Completed SOAR workflow | [Final workflow architecture](evidence/07-final-workflow-architecture.png) |
+
+## Evidence walkthrough
+
+### 1. Splunk detects the password spray
+
+Splunk correlated failed logons from `192.168.226.133` against five different Active Directory accounts.
+
+![Splunk password-spraying detection](evidence/01-splunk-password-spraying-detection.png)
+
+### 2. Shuffle receives the alert
+
+The authenticated webhook delivered the detection name, severity, source address, targeted users, and MITRE ATT&CK technique to Shuffle.
+
+![Shuffle received the Splunk alert](evidence/02-shuffle-alert-received.png)
+
+### 3. The connector suppresses duplicates
+
+The Python connector sent the first detection to Shuffle and skipped later copies of the same result.
+
+![Automatic connector and duplicate suppression](evidence/03-automatic-connector-deduplication.png)
+
+### 4. Shuffle performs the automatic response
+
+After all three validation checks passed, Shuffle called the restricted Windows responder. The responder returned HTTP `200`, `success: true`, and `dry_run: false`.
+
+![Shuffle automatic live response](evidence/04-shuffle-automatic-response.png)
+
+### 5. Active Directory accounts are disabled
+
+The five allowlisted `spray.user` accounts were confirmed as disabled in Active Directory.
+
+![Active Directory accounts disabled](evidence/05-active-directory-accounts-disabled.png)
+
+### 6. Splunk verifies the containment action
+
+The domain controller generated five Event ID `4725` events, confirming that the account-disable actions occurred.
+
+![Splunk Event ID 4725 response verification](evidence/06-splunk-response-audit-4725.png)
+
+### 7. Completed SOAR workflow
+
+The final workflow connects the authenticated webhook, alert ingestion, three validation conditions, and the account-containment response.
+
+![Final SOAR workflow architecture](evidence/07-final-workflow-architecture.png)
 
 ## Problems I ran into
 
