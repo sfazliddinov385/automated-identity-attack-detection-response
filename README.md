@@ -1,137 +1,169 @@
 # Automated Identity Attack Detection and Response
 
-A blue-team security automation lab that detects Active Directory password
-spraying in Splunk, sends a validated alert to Shuffle SOAR, and automatically
-disables the targeted lab accounts through a restricted Windows response
-service.
+I built this lab because I wanted to understand what happens after a SIEM detects an identity attack—not just stop at the alert. Splunk detects a password-spraying pattern against five Active Directory test accounts, a Python connector sends the detection to Shuffle SOAR, and a restricted Windows responder disables only those approved lab accounts.
 
-> **Status:** End-to-end lab validation completed successfully on August 20,
-> 2026.
+The final step verifies that the response actually happened by searching Splunk for Windows Security Event ID `4725`, which is generated when an account is disabled.
 
-![Final Shuffle workflow](evidence/07-final-workflow-architecture.png)
+> **Project status:** Successfully completed and tested end to end on August 20, 2026.
 
-## What this project demonstrates
+## Technologies used
 
-- Windows Security log collection from an Active Directory domain controller
-- Detection of one source attempting authentication against five distinct
-  accounts inside a rolling five-minute window
-- MITRE ATT&CK mapping to **T1110.003 — Password Spraying**
-- Automatic Splunk-to-Shuffle alert delivery using a Python connector
-- Three validation gates before containment is permitted
-- Authenticated and allowlisted Active Directory account containment
-- Duplicate-alert suppression to prevent repeated response actions
-- Verification through Windows Event ID **4725** audit events
+- Splunk Enterprise
+- Shuffle SOAR
+- Microsoft Active Directory
+- Windows Security Event Logs
+- Splunk Universal Forwarder
+- Python
+- PowerShell
+- Docker
+- VMware Workstation
+- Ubuntu Server
+- Windows Server 2022
 
-## Architecture
+## What the lab does
 
-![Architecture diagram](diagrams/architecture-diagram.png)
+- Collects Windows Security logs from an Active Directory domain controller
+- Detects one source attempting to authenticate against five different accounts
+- Correlates failed logons inside a rolling five-minute window
+- Maps the activity to **MITRE ATT&CK T1110.003 — Password Spraying**
+- Sends the detection from Splunk to Shuffle SOAR automatically
+- Validates the alert before permitting a response
+- Disables only allowlisted lab accounts
+- Suppresses duplicate alerts to prevent repeated response actions
+- Confirms containment using Windows Security Event ID `4725`
 
-| System | Lab role | Address |
+## Lab architecture
+
+| System | Role in the lab | IP address |
 | --- | --- | --- |
-| VICTIM-B | Controlled authentication-test source | `192.168.226.133` |
-| DC-01 (`WIN-3B0FE43Q9UR`) | Active Directory and Windows Security logs | `192.168.226.132` |
-| SIEM-01 | Splunk Enterprise and automatic connector | `192.168.226.129` |
-| SOAR-01 | Shuffle SOAR on Docker | `192.168.226.134` |
+| VICTIM-B | Generates controlled failed-logon events | `192.168.226.133` |
+| DC-01 (`WIN-3B0FE43Q9UR`) | Active Directory, DNS, and Windows Security logs | `192.168.226.132` |
+| SIEM-01 | Splunk Enterprise and the Python connector | `192.168.226.129` |
+| SOAR-01 | Shuffle SOAR running in Docker | `192.168.226.134` |
 
-All systems were placed on an isolated VMware network. The private addresses
-above are included only to make the lab reproducible.
+All four systems were connected to an isolated VMware network. The addresses shown above are private lab addresses included to make the project easier to understand and reproduce.
 
-## Detection logic
+## Password-spraying detection
 
-The Splunk search identifies failed logons where:
+The controlled test uses an incorrect password against five purpose-built Active Directory users. The domain controller records the failed network logons as Event ID `4625`.
 
-1. Event ID `4625` is recorded on the domain controller.
+Splunk looks for the following behavior:
+
+1. Failed logons are recorded on the domain controller.
 2. The attempts originate from the same source IP.
 3. Five or more distinct lab accounts are targeted.
 4. The attempts occur within a rolling five-minute window.
 
-The complete SPL is available at
-[`splunk/password-spraying-detection.spl`](splunk/password-spraying-detection.spl).
+The complete SPL detection is available in [`splunk/password-spraying-detection.spl`](splunk/password-spraying-detection.spl).
 
-![Splunk password-spraying detection](evidence/01-splunk-password-spraying-detection.png)
-
-## Automated workflow
+## SIEM-to-SOAR workflow
 
 ```text
-Failed logons on VICTIM-B
+Failed logons are generated from VICTIM-B
         ↓
-Windows Security Event ID 4625 on DC-01
+DC-01 records Windows Security Event ID 4625
         ↓
-Splunk correlation search on SIEM-01
+Splunk correlates the failed logons on SIEM-01
         ↓
-Python connector (60-second polling + deduplication)
+The Python connector checks Splunk every 60 seconds
         ↓
-Authenticated Shuffle webhook on SOAR-01
+The connector sends one authenticated alert to Shuffle
         ↓
-Validate severity + account count + detection type
+Shuffle validates the detection and its severity
         ↓
-Authenticated POST to the DC-01 responder
+Shuffle calls the restricted responder on DC-01
         ↓
-Allowlisted lab accounts disabled
+The five approved lab accounts are disabled
         ↓
-Windows Security Event ID 4725 returned to Splunk
+DC-01 records Event ID 4725
+        ↓
+The response events are forwarded back to Splunk
 ```
 
-Shuffle only permits the response branch when all three conditions are true:
+This project uses both SIEM and SOAR:
+
+- **Splunk SIEM** collects the logs and detects the password-spraying pattern.
+- **Shuffle SOAR** receives the alert, validates it, and coordinates the automated response.
+
+## Response validation
+
+Shuffle allows the response action to continue only when all three conditions are true:
 
 - `severity == "High"`
 - `targeted_accounts > 4`
 - `detection == "Password Spraying Detected"`
 
-## Results
+If one of these checks fails, the account-disable action does not run.
 
-The final controlled test produced the following results:
+## Safety controls
 
-- Five distinct failed logons were correlated by Splunk.
-- The connector sent one alert to Shuffle.
-- Repeated detections were suppressed as duplicates.
-- Shuffle returned HTTP `200` with `success: true` and `dry_run: false`.
-- All five allowlisted lab accounts were disabled.
-- Splunk received five Event ID `4725` account-disable events.
+Automatically disabling accounts can be risky, so I added several controls to limit what the responder is allowed to do:
+
+- Splunk-to-Shuffle and Shuffle-to-responder connections use separate authentication keys.
+- Secrets are stored outside the repository.
+- Windows Firewall restricts the responder port to SOAR-01.
+- The responder accepts only five exact test usernames.
+- Each user must belong to the dedicated `SOAR-Lab-Users` organizational unit.
+- Shuffle checks the detection name, severity, and account count before responding.
+- The public responder configuration starts in dry-run mode.
+- Every response request is written to an audit log.
+- The Python connector stores a detection fingerprint to prevent duplicate workflow executions.
+
+Additional information is available in [`docs/security-controls.md`](docs/security-controls.md).
+
+## Final test results
+
+During the final end-to-end test:
+
+- Splunk correlated five failed logons against five different accounts.
+- The Python connector sent one authenticated alert to Shuffle.
+- Later polling cycles recognized the same detection and skipped it as a duplicate.
+- Shuffle returned HTTP `200` with `success: true`.
+- The response showed `dry_run: false`, confirming that live response was enabled.
+- The responder disabled all five allowlisted lab accounts.
+- Splunk received five Event ID `4725` events confirming the account changes.
 
 | Stage | Evidence |
 | --- | --- |
-| Detection | [Splunk detection](evidence/01-splunk-password-spraying-detection.png) |
-| Alert ingestion | [Shuffle received the alert](evidence/02-shuffle-alert-received.png) |
-| Automatic delivery | [Connector and deduplication](evidence/03-automatic-connector-deduplication.png) |
-| Automated response | [Shuffle response](evidence/04-shuffle-automatic-response.png) |
-| AD containment | [Accounts disabled](evidence/05-active-directory-accounts-disabled.png) |
-| Response audit | [Event ID 4725](evidence/06-splunk-response-audit-4725.png) |
-| Workflow design | [Final workflow](evidence/07-final-workflow-architecture.png) |
+| Splunk detection | [Password-spraying detection](evidence/01-splunk-password-spraying-detection.png) |
+| Shuffle alert ingestion | [Alert received by Shuffle](evidence/02-shuffle-alert-received.png) |
+| Automatic connector | [Delivery and duplicate suppression](evidence/03-automatic-connector-deduplication.png) |
+| Shuffle response | [Successful automatic response](evidence/04-shuffle-automatic-response.png) |
+| Active Directory containment | [Disabled lab accounts](evidence/05-active-directory-accounts-disabled.png) |
+| Splunk audit verification | [Event ID 4725 results](evidence/06-splunk-response-audit-4725.png) |
+| Completed SOAR workflow | [Final workflow architecture](evidence/07-final-workflow-architecture.png) |
 
-## Security controls
+## Problems I ran into
 
-This project intentionally avoids unrestricted account-management automation.
-The response service uses:
+The lab required a fair amount of troubleshooting. The main problems I encountered were:
 
-- Separate secrets stored outside the repository
-- A custom authentication header for each integration
-- A Windows Firewall rule restricted to the SOAR host
-- An exact username allowlist
-- An Active Directory OU boundary
-- Detection-type, severity, and account-count validation
-- Dry-run mode enabled by default in the public scripts
-- JSON-line response auditing
-- Duplicate-event suppression in the connector
+- The target username was stored inside Splunk's multivalue `Account_Name` field instead of the field I originally expected.
+- The virtual machines were using different time zones, which caused recent events to appear outside the Splunk search window.
+- The first Shuffle execution remained in the `EXECUTING` state because the Docker worker could not resolve other services on the Swarm network.
+- The HTTP application service had to be added to the correct Docker overlay network.
+- Splunk continued returning the same rolling-window result, so I added fingerprint-based duplicate suppression.
+- An HTTP `200` response did not prove that containment happened, so I verified the result separately in Active Directory and through Event ID `4725`.
 
-See [`docs/security-controls.md`](docs/security-controls.md) for details.
+More detailed troubleshooting notes are available in [`docs/lessons-learned.md`](docs/lessons-learned.md).
 
-## Repository guide
+## Repository structure
 
-| Directory | Purpose |
+| Directory | Contents |
 | --- | --- |
-| `splunk/` | Detection and response-audit SPL |
-| `connector/` | Splunk-to-Shuffle Python connector and systemd unit |
-| `shuffle/` | Sanitized workflow design template |
+| `splunk/` | Password-spraying detection and response-audit SPL |
+| `connector/` | Python Splunk-to-Shuffle connector and systemd service |
+| `shuffle/` | Sanitized Shuffle workflow reference |
 | `windows-responder/` | Restricted Active Directory response service |
-| `testing/` | Controlled lab simulation and verification scripts |
-| `docs/` | Architecture, implementation, testing, and lessons learned |
-| `evidence/` | Final screenshots from the validated test |
+| `testing/` | Controlled simulation and verification scripts |
+| `docs/` | Architecture, implementation, testing, controls, and lessons learned |
+| `diagrams/` | Lab architecture diagram |
+| `evidence/` | Screenshots from the completed test |
 
-## Quick start
+## Reproducing the lab
 
-This repository documents a completed lab rather than providing a one-command
-production deployment. Review the component READMEs in this order:
+This repository documents a completed cybersecurity lab rather than providing a one-command production installer.
+
+Review the component guides in the following order:
 
 1. [`splunk/README.md`](splunk/README.md)
 2. [`connector/README.md`](connector/README.md)
@@ -139,22 +171,31 @@ production deployment. Review the component READMEs in this order:
 4. [`windows-responder/README.md`](windows-responder/README.md)
 5. [`testing/README.md`](testing/README.md)
 
-## Production considerations
+The broader implementation process is documented in [`docs/implementation.md`](docs/implementation.md).
 
-The lab used self-signed certificates and internal HTTP communication on a
-fully isolated network. A production implementation should use trusted TLS,
-managed secrets, service identities, approval gates for high-impact actions,
-centralized audit storage, high availability, and broader detection tuning.
+## What I would change for production
 
-## Ethical-use statement
+This project was built on an isolated network and used self-signed certificates and internal HTTP communication.
 
-The included test script is intended only for systems you own or are explicitly
-authorized to test. This project was performed in an isolated lab against
-purpose-built accounts. Do not run the simulation against production systems
-or third-party infrastructure.
+For a production environment, I would add:
+
+- Trusted TLS certificates
+- A centralized secrets manager
+- Dedicated service accounts with minimum required permissions
+- Approval gates for high-impact response actions
+- Centralized and protected response logs
+- Rate limiting
+- High availability
+- Additional detection tuning to reduce false positives
+- Recovery procedures for accounts disabled incorrectly
+
+## Ethical use
+
+The testing scripts in this repository are intended only for systems you own or are explicitly authorized to test.
+
+I performed the simulation on an isolated VMware network against accounts created specifically for this project. Do not run the password-spraying simulation against production systems or third-party infrastructure.
 
 ## Author
 
 **Sarvarbek “Bek” Fazliddinov**  
 Information Security Graduate Student at Georgia Tech
-
