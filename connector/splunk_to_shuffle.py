@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Poll Splunk for lab password-spraying detections and notify Shuffle.
 
-Secrets are read from files in ~/.soar-connector and are never embedded in
-this source file. The default ten-minute lookback and fingerprint state prevent
-the same detection from repeatedly triggering containment.
-"""
 
 from __future__ import annotations
 
