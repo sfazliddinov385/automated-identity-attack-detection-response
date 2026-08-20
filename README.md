@@ -4,7 +4,6 @@ I built this lab because I wanted to understand what happens after a SIEM detect
 
 The final step verifies that the response actually happened by searching Splunk for Windows Security Event ID `4725`, which is generated when an account is disabled.
 
-> **Project status:** Successfully completed and tested end to end on August 20, 2026.
 
 ![Final Shuffle SOAR workflow](evidence/07-final-workflow-architecture.png)
 
