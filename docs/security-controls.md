@@ -2,60 +2,54 @@
 
 ## Request checks
 
-The connector uses one key to send alerts to Shuffle. Shuffle uses a different
-key to call the Windows responder. The responder checks the source IP, key,
-HTTP method, URL path, request size (64 KiB maximum), and required alert fields.
+The connector uses one key to send alerts to Shuffle, and Shuffle uses a separate key to contact the Windows responder.
 
-The responder accepts only the five test users in the LAB domain. It checks
-that every account belongs to the lab OU before changing any account. It logs
-each HTTP outcome without recording keys or raw request bodies.
+Before accepting a request, the responder checks:
+
+- The source IP and response key.
+- The HTTP method and URL path.
+- The request size, with a maximum of 64 KiB.
+- The required alert fields.
+- The exact five test usernames and the LAB domain.
+
+It also checks that all five accounts are in the lab OU before changing any of them. Each HTTP outcome is logged, but keys and raw request bodies are left out of the logs.
 
 ## Approval
 
-A valid alert does not authorize an account change on its own. An administrator
-must approve it locally with `Approve-SOARRequest.ps1`. The approval records who
-approved it, their reason, and its start and expiry times.
+An accepted alert cannot disable accounts by itself. An administrator must approve the request on DC-01 using `Approve-SOARRequest.ps1`. The approval records the administrator's identity, their reason, and when the approval starts and expires.
 
-Approval applies to a request ID calculated from the source, event time, domain,
-detection, severity, and exact account list. Adding an approval field to the
-HTTP request does not grant approval, and there is no HTTP approval endpoint.
-The installer restricts the response directory to SYSTEM and Administrators.
-It also resets permissions on the files and folders inside it to remove any
-older grants of access.
+Each approval is tied to a request ID based on the source IP, event time, domain, detection name, severity, and exact account list. Adding an approval field to the alert does not bypass this step. There is no HTTP endpoint for granting approval.
 
-An administrator or SYSTEM can still change the approval files or code. These
-checks do not protect against someone who already controls either identity.
-A production design would need to separate approval permissions from the
-permissions used to run the response.
+The installer limits access to the response directory to SYSTEM and Administrators. It also resets permissions on the files and folders inside it to remove older access permissions.
+
+Someone with Administrator or SYSTEM access could still change the scripts or approval files. For use outside the lab, approval should be controlled separately from the account that runs the responder.
 
 ## Account changes and results
 
-Dry-run mode changes nothing and never reports verified success. Before making
-AD changes, a live request saves a record that processing has started. This
-prevents another copy of the same request from starting the changes again.
-If processing stops unexpectedly, an administrator must inspect the result.
-The responder saves completed results, including partial failures.
+Dry-run mode previews the response without changing accounts or reporting verified success.
 
-After acting on an account, the responder reads its state from the same DC.
-It reports success only when all five accounts are confirmed disabled. Sending
-a completed request again returns the saved result, clearly marked as cached;
-it does not check the current account state again.
+Before a live response changes any accounts, it saves a record that processing has started. This prevents another copy of the same request from starting the actions again. If the service stops partway through, an administrator needs to check what happened before attempting recovery.
 
-Windows Event 4725 is checked separately in Splunk. The connector's delivery
-record means Shuffle accepted the alert; it does not confirm that accounts
-were disabled.
+The responder saves the final result, including partial failures. After each account action, it checks the account on the same DC. It only reports success when all five accounts are confirmed disabled.
+
+If a completed request is sent again, the responder returns its saved result and marks it as cached. That result describes the earlier attempt; it does not include a new check of the accounts.
+
+Event ID 4725 is checked separately in Splunk to confirm that Windows recorded the disable actions. The connector's delivery record only confirms that Shuffle accepted the alert.
 
 ## What still needs work
 
-The lab still runs the responder as SYSTEM on a domain controller and sends
-requests to it over HTTP. Some lab connections can also skip TLS certificate
-verification for self-signed services. The OU check restricts what the code
-will change, but it does not reduce the task's AD permissions.
+The responder runs as SYSTEM on the lab domain controller and receives requests over HTTP. Some lab connections also allow TLS certificate checks to be skipped for self-signed services.
 
-Before using this outside the lab, it would need trusted TLS certificates, a
-service account with limited AD permissions, and a way to store and rotate
-keys. It would also need protected central logs, service monitoring, limits on
-request load, detections tested against normal activity, and a documented way
-to recover from failed or mistaken responses.
+The OU check limits which accounts the script will change, but the scheduled task still has broad AD permissions.
+
+Before using this outside the lab, I would need to:
+
+- Use HTTPS with trusted certificates and enable certificate verification.
+- Run the responder under a service account with only the AD permissions it needs.
+- Set up secure key storage and rotation.
+- Send logs to a protected central location.
+- Monitor the services and limit how many requests they can handle at once.
+- Test the detection against normal login activity.
+- Document how to recover from failed responses or accounts disabled by mistake.
 
 See [approval and recovery details](approval-and-verification.md).
