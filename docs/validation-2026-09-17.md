@@ -2,7 +2,7 @@
 
 Responder revision: `c356035b4dd0851e72810dd557eb010b33e22bd5`.
 This record summarizes operator-provided terminal output, Shuffle execution
-results, and a Splunk screenshot reviewed during installation. It is not an
+results, and the original Shuffle/Splunk screenshots captured during validation. It is not an
 independent remote examination of the VMs.
 
 ## Observed flow
@@ -46,6 +46,36 @@ The event subject was SYSTEM (SID `S-1-5-18`), with the DC machine account
 operator. TargetUserName and SubjectUserName table columns were blank, but the
 raw Message contained the actor and target accounts. Audit verification was
 manual; the responder automatically verified AD state only.
+
+## Captured screenshots
+
+These are the operator's original captures, copied without image edits. The
+narrow Shuffle captures truncate long request IDs; the complete ID above comes
+from the corresponding pasted execution output.
+
+### Request awaiting approval
+
+The live responder returned HTTP 202 and reported no account changes before
+approval. `dry_run=false` distinguishes this from a preview. Shuffle's outer
+`success=true` describes the HTTP action, not completed containment.
+
+![Live request pending local approval](../evidence/2026-09-17/01-pending-approval.png)
+
+### Approved and verified response
+
+The response includes the approving operator, reason, and approval time, followed
+by five verified accounts. Individual account results are collapsed in this
+capture; the separate audit screenshot names all five affected accounts.
+
+![Approved request with five verified accounts](../evidence/2026-09-17/02-approved-response.png)
+
+### Separate Splunk audit
+
+The messages show five account-disable events, their target users, SYSTEM actor,
+and timestamps matching the approved response. The screenshot is the results
+table; the EventCode 4725 filter was supplied in the search used for this check.
+
+![Five Windows account-disable events in Splunk](../evidence/2026-09-17/03-splunk-audit-4725.png)
 
 ## Configuration and limits
 

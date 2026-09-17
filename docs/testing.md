@@ -61,7 +61,8 @@ firewall, real AD, or Shuffle integration behavior.
 
 The earlier direct-response lab recorded five failed logons, one delivered
 detection, duplicate suppression, five disabled lab accounts, and five 4725
-events. The screenshots under `evidence/` document that original run.
+events. The seven original screenshots directly under `evidence/` document that
+original run. The new approval-flow captures are under `evidence/2026-09-17/`.
 
 Those screenshots do not prove the new approval flow or its verification code
 was executed. Keep original results and new validation evidence clearly labeled.

@@ -36,6 +36,14 @@ use fake AD commands; additional live failure-path checks remain outstanding.
 - [Current Shuffle reference workflow](shuffle/README.md)
 - [Automated tests and VM validation checklist](docs/testing.md)
 
+### Evidence from the approval flow — September 17, 2026
+
+| Stage | Screenshot |
+| --- | --- |
+| Live request waits for local approval | [HTTP 202 and pending approval](evidence/2026-09-17/01-pending-approval.png) |
+| Approved request verifies five disabled accounts | [Approver, reason, time, and verified result](evidence/2026-09-17/02-approved-response.png) |
+| Separate Windows audit in Splunk | [Five account-disable events](evidence/2026-09-17/03-splunk-audit-4725.png) |
+
 ## Original fully automated lab (v1)
 
 The remainder of this page preserves the original implementation story and its
