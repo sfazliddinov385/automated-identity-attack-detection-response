@@ -1,5 +1,55 @@
 # Automated Identity Attack Detection and Response
 
+## Approval and verification revision
+
+The current responder requires a local operator's approval before changing any
+account. Failed logons establish suspected password spraying; they do not prove
+an account was compromised or justify automatically disabling its owner.
+
+The revised flow is:
+
+1. Splunk detects the pattern and Python delivers it to Shuffle.
+2. Shuffle submits the alert to the responder, which returns `pending_approval`.
+3. An operator reviews the source, accounts, available evidence, and business impact.
+4. The operator approves the exact request locally, with a reason and expiry.
+5. The unchanged response request is resubmitted from Shuffle.
+6. The responder checks every account's OU before acting, disables eligible users,
+   and reads their state back from the same domain controller.
+7. Only five verified disabled accounts produce `status: verified`. Partial
+   failure and interrupted execution require review.
+
+Approval records are protected local files. A webhook cannot self-approve by
+setting `approved: true`. Request IDs bind approval to the source, event time,
+domain, detection, and exact user set. A durable processing record prevents
+automatic replay after execution starts.
+
+**Validation status:** the core approval flow was exercised in the VMware lab on
+2026-09-17: fresh detection delivery, dry-run preview, pending approval, local
+operator approval, resubmission, five verified disabled accounts, and five
+corresponding account-disable events in Splunk. See the
+[dated validation record](docs/validation-2026-09-17.md) for evidence and limits.
+The original screenshots below remain historical v1 evidence. Automated tests
+use fake AD commands; additional live failure-path checks remain outstanding.
+
+- [Install, review, resume, and verify the revised flow](docs/approval-and-verification.md)
+- [Current responder setup](windows-responder/README.md)
+- [Current Shuffle reference workflow](shuffle/README.md)
+- [Automated tests and VM validation checklist](docs/testing.md)
+
+### Evidence from the approval flow — September 17, 2026
+
+| Stage | Screenshot |
+| --- | --- |
+| Live request waits for local approval | [HTTP 202 and pending approval](evidence/2026-09-17/01-pending-approval.png) |
+| Approved request verifies five disabled accounts | [Approver, reason, time, and verified result](evidence/2026-09-17/02-approved-response.png) |
+| Separate Windows audit in Splunk | [Five account-disable events](evidence/2026-09-17/03-splunk-audit-4725.png) |
+
+## Original fully automated lab (v1)
+
+The remainder of this page preserves the original implementation story and its
+recorded evidence. Its direct account-disable behavior has been replaced by the
+approval requirement above; the screenshots and results are historical.
+
 I built this lab because I wanted to understand what happens after a SIEM detects an identity attack—not just stop at the alert. Splunk detects a password-spraying pattern against five Active Directory test accounts, a Python connector sends the detection to Shuffle SOAR, and a restricted Windows responder disables only those approved lab accounts.
 
 The final step verifies that the response actually happened by searching Splunk for Windows Security Event ID `4725`, which is generated when an account is disabled.

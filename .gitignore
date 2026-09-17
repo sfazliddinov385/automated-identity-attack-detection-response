@@ -12,6 +12,8 @@ webhook-header.txt
 
 # Runtime state and logs
 state.json
+**/state/
+*.tmp
 *.log
 *.pid
 

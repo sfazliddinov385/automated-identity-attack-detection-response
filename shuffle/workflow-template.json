@@ -1,8 +1,8 @@
 {
   "template_type": "sanitized_shuffle_workflow_reference",
-  "template_version": "1.0",
-  "name": "AD Password Spraying Detection and Response",
-  "description": "Receive a normalized Splunk detection, validate response policy, and call the restricted Active Directory responder.",
+  "template_version": "2.0",
+  "name": "AD Password Spraying Review, Approved Response, and Verification",
+  "description": "Detect suspected spraying, require local review for the exact request, then verify all account states after the approved response.",
   "mitre_attack": {
     "technique_id": "T1110.003",
     "technique_name": "Password Spraying"
@@ -67,7 +67,7 @@
     },
     {
       "order": 4,
-      "name": "Disable Compromised Lab Accounts",
+      "name": "Submit Response Request",
       "type": "HTTP POST",
       "url": "http://<DC-01>:8081/disable-users",
       "headers": {
@@ -75,7 +75,53 @@
         "X-SOAR-RESPONSE-KEY": "<stored-outside-git>"
       },
       "body": "$validate_high-risk_alert",
-      "expected_status": 200
+      "response_routing": {
+        "pending_approval": "Preserve request_id and original alert; await local operator review.",
+        "dry_run": "Preview only; no verified containment.",
+        "verified": "Require success=true, verified=true, dry_run=false, and five verified accounts.",
+        "already_processed": "Historical previous_result only; show verification timestamp.",
+        "partial_failure": "Route HTTP 500 body to analyst review; no automatic retries.",
+        "requires_review": "Stop and inspect state and AD before recovery."
+      }
+    },
+    {
+      "order": 5,
+      "name": "Local Operator Approval",
+      "type": "manual_external_step",
+      "tool": "windows-responder/Approve-SOARRequest.ps1",
+      "authority": "Protected local state on DC-01; no HTTP approval endpoint.",
+      "expiry_minutes": 15,
+      "context_review": [
+        "source legitimacy",
+        "authentication evidence",
+        "affected identities",
+        "business impact"
+      ],
+      "note": "An alert severity or caller-supplied approved flag is not approval."
+    },
+    {
+      "order": 6,
+      "name": "Resume Original Response",
+      "type": "manual_workflow_resume",
+      "body": "Saved original normalized alert, unchanged",
+      "destination": "Same authenticated POST /disable-users",
+      "note": "Configure this review/resume path in the lab. The connector does not automatically resend duplicate detections."
+    },
+    {
+      "order": 7,
+      "name": "Record Verified Result or Escalate",
+      "type": "response_validation",
+      "required_for_fresh_success": {
+        "http_status": 200,
+        "status": "verified",
+        "success": true,
+        "verified": true,
+        "dry_run": false,
+        "verified_accounts": 5,
+        "requested_accounts": 5
+      },
+      "on_failure": "Retain per-account results and request_id for operator review. Do not automatically retry changes.",
+      "audit_4725": "Separate Splunk audit search; not performed by the responder."
     }
   ],
   "security_controls": [
@@ -85,7 +131,11 @@
     "SOAR source-IP firewall restriction",
     "Exact account allowlist",
     "Active Directory OU boundary",
-    "Dry-run-first validation"
+    "Dry-run-first validation",
+    "Local expiring approval bound to request identity",
+    "All-account preflight before changes",
+    "AD state readback on the same DC",
+    "Persistent processing claim and historical replay result"
   ]
 }
 

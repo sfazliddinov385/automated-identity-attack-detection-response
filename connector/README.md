@@ -4,6 +4,12 @@ The connector polls the local Splunk REST API every 60 seconds, normalizes a
 matching detection into JSON, sends it to an authenticated Shuffle webhook, and
 records a fingerprint after successful delivery.
 
+Delivery means Shuffle accepted the webhook, not that an account response
+completed. State records `delivery_status: accepted_by_shuffle`. The current
+responder requires local approval and verifies AD state after acting; see the
+[review and verification guide](../docs/approval-and-verification.md).
+The connector does not resume pending requests or monitor Shuffle completion.
+
 ## Private files
 
 Create the following files under `~/.soar-connector`. Never add them to Git:

@@ -1,0 +1,25 @@
+name: Response safety tests
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  response:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test approval and verification with fake AD (Windows PowerShell 5.1)
+        shell: powershell
+        run: .\tests\response-tests.ps1
+      - name: Test approval and verification with fake AD (PowerShell 7)
+        shell: pwsh
+        run: .\tests\response-tests.ps1
+  connector:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test delivery state without external services
+        run: python3 -m unittest discover -s tests -p 'test_*.py'

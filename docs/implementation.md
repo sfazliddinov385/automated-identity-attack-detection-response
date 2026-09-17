@@ -1,5 +1,9 @@
 # Implementation
 
+> Historical v1 implementation notes. Follow [the current operator guide](approval-and-verification.md)
+> for the approval and verification revision; the old direct-response sequence
+> below is not the current live-response policy.
+
 ## 1. Active Directory test identities
 
 Five enabled users were created inside a dedicated OU:
@@ -59,8 +63,9 @@ outbound responder use different secrets.
 
 ## 6. Windows responder
 
-The responder runs on DC-01 because Active Directory PowerShell commands must
-execute within the domain's administrative boundary. It validates the alert,
+The original lab placed the responder on DC-01 for convenience. AD commands can
+also run from a configured management host with connectivity and delegated
+permissions. The original responder validates the alert,
 checks every requested identity against both an exact allowlist and the lab OU,
 then invokes `Disable-ADAccount`.
 

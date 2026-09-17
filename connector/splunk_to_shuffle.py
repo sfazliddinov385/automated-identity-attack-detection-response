@@ -178,6 +178,7 @@ def save_state(current_fingerprint: str, execution_id: str) -> None:
     state = {
         "last_fingerprint": current_fingerprint,
         "execution_id": execution_id,
+        "delivery_status": "accepted_by_shuffle",
         "sent_at": datetime.now(timezone.utc).isoformat(),
     }
     STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
@@ -228,7 +229,8 @@ def run_once(lookback: str, check_only: bool = False) -> None:
 
     execution_id = str(response.get("execution_id", "unknown"))
     save_state(current_fingerprint, execution_id)
-    log(f"Alert sent to Shuffle. Execution ID: {execution_id}")
+    log(f"Alert accepted by Shuffle. Execution ID: {execution_id}. "
+        "Account response requires operator approval and a verified responder result.")
 
 
 def main() -> None:

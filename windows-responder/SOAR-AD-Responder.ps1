@@ -1,243 +1,103 @@
 [CmdletBinding()]
 param(
     [switch]$LiveResponse,
-    [string]$ListenPrefix = "http://+:8081/",
-    [string]$KeyPath = "C:\SOAR\Response\response.key",
-    [string]$LogPath = "C:\SOAR\Response\response.log",
-    [string[]]$AllowedSourceIPs = @("192.168.226.134")
+    [string]$ListenPrefix = 'http://+:8081/',
+    [string]$KeyPath = 'C:\SOAR\Response\response.key',
+    [string]$LogPath = 'C:\SOAR\Response\response.log',
+    [string]$StateRoot = 'C:\SOAR\Response\state',
+    [string]$DirectoryServer = 'localhost',
+    [string[]]$AllowedSourceIPs = @('192.168.226.134')
 )
-
 Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
-
+$ErrorActionPreference = 'Stop'
 Import-Module ActiveDirectory
-
-$DryRun = -not $LiveResponse
-$AllowedOu = "OU=SOAR-Lab-Users,DC=lab,DC=local"
-$AllowedUsers = @(
-    "spray.user01",
-    "spray.user02",
-    "spray.user03",
-    "spray.user04",
-    "spray.user05"
-)
+. (Join-Path $PSScriptRoot 'SOAR-ResponseCore.ps1')
 
 function Write-JsonResponse {
-    param(
-        [Parameter(Mandatory)]
-        [System.Net.HttpListenerResponse]$Response,
-
-        [Parameter(Mandatory)]
-        [int]$StatusCode,
-
-        [Parameter(Mandatory)]
-        [hashtable]$Body
-    )
-
-    $Json = $Body | ConvertTo-Json -Depth 8 -Compress
-    $Bytes = [Text.Encoding]::UTF8.GetBytes($Json)
-
+    param([Net.HttpListenerResponse]$Response, [int]$StatusCode, [hashtable]$Body)
+    $Bytes = [Text.Encoding]::UTF8.GetBytes(($Body | ConvertTo-Json -Depth 12 -Compress))
     $Response.StatusCode = $StatusCode
-    $Response.ContentType = "application/json"
+    $Response.ContentType = 'application/json'
     $Response.ContentEncoding = [Text.Encoding]::UTF8
     $Response.ContentLength64 = $Bytes.Length
     $Response.OutputStream.Write($Bytes, 0, $Bytes.Length)
     $Response.OutputStream.Close()
 }
 
-function Write-AuditRecord {
-    param([Parameter(Mandatory)]$Record)
-
-    $Directory = Split-Path -Parent $LogPath
-    if (-not (Test-Path $Directory)) {
-        New-Item -ItemType Directory -Path $Directory -Force | Out-Null
+function Read-AlertBody {
+    param([Net.HttpListenerRequest]$Request)
+    # Enforce the actual byte count, including requests without Content-Length.
+    $Buffer = New-Object byte[] 4096
+    $Stream = [IO.MemoryStream]::new()
+    try {
+        while (($Read = $Request.InputStream.Read($Buffer, 0, $Buffer.Length)) -gt 0) {
+            if (($Stream.Length + $Read) -gt 65536) { throw [IO.InvalidDataException]::new('Request body exceeds 64 KiB.') }
+            $Stream.Write($Buffer, 0, $Read)
+        }
+        [Text.Encoding]::UTF8.GetString($Stream.ToArray()) | ConvertFrom-Json -ErrorAction Stop
     }
-
-    $Record |
-        ConvertTo-Json -Depth 8 -Compress |
-        Add-Content -Path $LogPath -Encoding UTF8
+    finally { $Stream.Dispose() }
 }
 
-if (-not (Test-Path $KeyPath)) {
-    throw "Response key was not found at $KeyPath"
-}
-
-$ExpectedKey = (Get-Content -Raw $KeyPath).Trim()
-if ($ExpectedKey.Length -lt 32) {
-    throw "Response key is missing or too short."
-}
-
-$Listener = [System.Net.HttpListener]::new()
+$ExpectedKey = (Get-Content -LiteralPath $KeyPath -Raw).Trim()
+if ($ExpectedKey.Length -lt 32) { throw 'Response key is missing or too short.' }
+Initialize-SOARState $StateRoot
+$Listener = [Net.HttpListener]::new()
 $Listener.Prefixes.Add($ListenPrefix)
 $Listener.Start()
-
-Write-Host "SOAR AD responder listening on $ListenPrefix"
-Write-Host "Dry-run mode: $DryRun"
+Write-Host "SOAR responder listening on $ListenPrefix; dry run: $(-not $LiveResponse)"
+Write-Host 'Live requests require local approval and automatic AD state verification.'
 
 try {
     while ($Listener.IsListening) {
         $Context = $Listener.GetContext()
         $Request = $Context.Request
-        $Response = $Context.Response
         $RemoteAddress = $Request.RemoteEndPoint.Address
-
-        if ($RemoteAddress.IsIPv4MappedToIPv6) {
-            $RemoteAddress = $RemoteAddress.MapToIPv4()
-        }
-
+        if ($RemoteAddress.IsIPv4MappedToIPv6) { $RemoteAddress = $RemoteAddress.MapToIPv4() }
         $RemoteIP = $RemoteAddress.ToString()
-
+        $Reply = $null
         try {
             if ($AllowedSourceIPs -notcontains $RemoteIP) {
-                Write-JsonResponse -Response $Response -StatusCode 403 -Body @{
-                    success = $false
-                    reason  = "Source address is not authorized."
-                }
-                continue
+                $Reply = New-SOARReply 403 @{ success = $false; status = 'rejected'; reason = 'Unauthorized source address.' }
             }
-
-            if ($Request.HttpMethod -ne "POST" -or
-                $Request.Url.AbsolutePath -ne "/disable-users") {
-                Write-JsonResponse -Response $Response -StatusCode 404 -Body @{
-                    success = $false
-                    reason  = "Endpoint not found."
-                }
-                continue
+            elseif ($Request.HttpMethod -ne 'POST' -or $Request.Url.AbsolutePath -cne '/disable-users') {
+                $Reply = New-SOARReply 404 @{ success = $false; status = 'rejected'; reason = 'Endpoint not found.' }
             }
-
-            if ($Request.ContentLength64 -gt 65536) {
-                Write-JsonResponse -Response $Response -StatusCode 413 -Body @{
-                    success = $false
-                    reason  = "Request body is too large."
-                }
-                continue
+            elseif ($Request.ContentLength64 -gt 65536) {
+                $Reply = New-SOARReply 413 @{ success = $false; status = 'rejected'; reason = 'Request body exceeds 64 KiB.' }
             }
-
-            $ProvidedKey = $Request.Headers["X-SOAR-RESPONSE-KEY"]
-            if ([string]::IsNullOrWhiteSpace($ProvidedKey) -or
-                $ProvidedKey -cne $ExpectedKey) {
-                Write-JsonResponse -Response $Response -StatusCode 401 -Body @{
-                    success = $false
-                    reason  = "Authentication failed."
-                }
-                continue
+            elseif ([string]::IsNullOrWhiteSpace($Request.Headers['X-SOAR-RESPONSE-KEY']) -or
+                $Request.Headers['X-SOAR-RESPONSE-KEY'] -cne $ExpectedKey) {
+                $Reply = New-SOARReply 401 @{ success = $false; status = 'rejected'; reason = 'Authentication failed.' }
             }
-
-            $Reader = [IO.StreamReader]::new(
-                $Request.InputStream,
-                $Request.ContentEncoding
-            )
-            $Payload = $Reader.ReadToEnd() | ConvertFrom-Json
-            $Reader.Close()
-
-            if ($Payload.detection -ne "Password Spraying Detected" -or
-                $Payload.severity -ne "High" -or
-                [int]$Payload.targeted_accounts -lt 5) {
-                Write-JsonResponse -Response $Response -StatusCode 400 -Body @{
-                    success = $false
-                    reason  = "Alert did not satisfy response policy."
-                }
-                continue
+            else {
+                $Payload = Read-AlertBody $Request
+                $Reply = Invoke-SOARResponse -Payload $Payload -StateRoot $StateRoot -DryRun (-not $LiveResponse) -DirectoryServer $DirectoryServer
             }
-
-            $RequestedUsers = @($Payload.targeted_users | Select-Object -Unique)
-
-            if ($RequestedUsers.Count -lt 5 -or
-                $RequestedUsers.Count -ne [int]$Payload.targeted_accounts) {
-                Write-JsonResponse -Response $Response -StatusCode 400 -Body @{
-                    success = $false
-                    reason  = "Unique user count did not match the alert count."
-                }
-                continue
-            }
-
-            $Results = foreach ($Username in $RequestedUsers) {
-                if ($AllowedUsers -notcontains [string]$Username) {
-                    [PSCustomObject]@{
-                        user    = [string]$Username
-                        success = $false
-                        action  = "RejectedNotAllowlisted"
-                    }
-                    continue
-                }
-
-                try {
-                    $AdUser = Get-ADUser -Identity $Username -Properties Enabled
-                    $RequiredSuffix = ",$AllowedOu"
-
-                    if (-not $AdUser.DistinguishedName.EndsWith(
-                            $RequiredSuffix,
-                            [StringComparison]::OrdinalIgnoreCase
-                        )) {
-                        throw "Account is outside the authorized lab OU."
-                    }
-
-                    if (-not $AdUser.Enabled) {
-                        $Action = "AlreadyDisabled"
-                    }
-                    elseif ($DryRun) {
-                        $Action = "WouldDisable"
-                    }
-                    else {
-                        Disable-ADAccount -Identity $AdUser -Confirm:$false
-                        $Action = "Disabled"
-                    }
-
-                    [PSCustomObject]@{
-                        user    = $AdUser.SamAccountName
-                        success = $true
-                        action  = $Action
-                    }
-                }
-                catch {
-                    [PSCustomObject]@{
-                        user    = [string]$Username
-                        success = $false
-                        action  = "Error"
-                        reason  = $_.Exception.Message
-                    }
-                }
-            }
-
-            $ResponseBody = @{
-                success            = $true
-                dry_run            = $DryRun
-                detection          = [string]$Payload.detection
-                source_ip          = [string]$Payload.source_ip
-                requested_accounts = $RequestedUsers.Count
-                results            = @($Results)
-                timestamp_utc      = (Get-Date).ToUniversalTime().ToString("o")
-            }
-
-            Write-AuditRecord -Record ([PSCustomObject]@{
-                timestamp_utc = $ResponseBody.timestamp_utc
-                remote_ip     = $RemoteIP
-                dry_run       = $DryRun
-                detection     = $ResponseBody.detection
-                source_ip     = $ResponseBody.source_ip
-                results       = @($Results)
-            })
-
-            Write-JsonResponse -Response $Response -StatusCode 200 -Body $ResponseBody
+        }
+        catch [IO.InvalidDataException] {
+            $Reply = New-SOARReply 413 @{ success = $false; status = 'rejected'; reason = 'Request body exceeds 64 KiB.' }
+        }
+        catch [ArgumentException] {
+            $Reply = New-SOARReply 400 @{ success = $false; status = 'rejected'; reason = 'Invalid request body.' }
         }
         catch {
-            Write-AuditRecord -Record ([PSCustomObject]@{
-                timestamp_utc = (Get-Date).ToUniversalTime().ToString("o")
-                remote_ip     = $RemoteIP
-                success       = $false
-                error         = $_.Exception.Message
-            })
-
-            if ($Response.OutputStream.CanWrite) {
-                Write-JsonResponse -Response $Response -StatusCode 500 -Body @{
-                    success = $false
-                    reason  = "Response processing failed."
-                }
+            $Reply = New-SOARReply 500 @{ success = $false; status = 'requires_review'; reason = 'Response processing failed. Inspect protected state and audit logs.' }
+        }
+        try {
+            # Log every HTTP outcome, including rejected requests. Never log keys or raw payloads.
+            $Audit = @{
+                timestamp_utc = [DateTimeOffset]::UtcNow.ToString('o'); remote_ip = $RemoteIP
+                http_status = $Reply.StatusCode; response = $Reply.Body
             }
+            $Audit | ConvertTo-Json -Depth 12 -Compress | Add-Content -LiteralPath $LogPath -Encoding UTF8
+            Write-JsonResponse -Response $Context.Response -StatusCode $Reply.StatusCode -Body $Reply.Body
+        }
+        catch {
+            # State is durable before verified success is returned. Do not repeat side effects.
+            try { $Context.Response.Abort() } catch { }
+            Write-Warning 'Could not write response or audit log. Inspect state and file permissions.'
         }
     }
 }
-finally {
-    $Listener.Stop()
-    $Listener.Close()
-}
+finally { $Listener.Stop(); $Listener.Close() }
