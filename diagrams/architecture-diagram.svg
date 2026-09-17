@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1480" viewBox="0 0 1800 1480" role="img" aria-labelledby="title desc">
+<title id="title">Automated identity attack detection and response with local approval</title>
+<desc id="desc">VICTIM-B generates failed SMB logons. DC-01 forwards Event 4625 to Splunk. A Python connector delivers detections to Shuffle. The DC responder holds live requests for local operator approval, which expires after 15 minutes by default. The operator resubmits the same alert from Shuffle. The responder disables the five allowed lab accounts and verifies their state in Active Directory. Windows Event 4725 is separately forwarded to Splunk and manually audited.</desc>
+<defs>
+<linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0b192a"/><stop offset="1" stop-color="#07111e"/></linearGradient>
+
+<marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 9 5 L 0 10 Z" fill="#49b7ff"/></marker>
+<marker id="arrow-amber" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 9 5 L 0 10 Z" fill="#ffbd60"/></marker>
+<marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 9 5 L 0 10 Z" fill="#48d8b3"/></marker>
+</defs>
+<rect x="0" y="0" width="1800" height="1480" rx="0" fill="url(#background)"/>
+<text x="64" y="47" fill="#48d8b3" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="2">SECURITY OPERATIONS  /  LAB ARCHITECTURE</text>
+<rect x="1498" y="24" width="238" height="31" rx="8" fill="#081321" stroke="#48d8b3" stroke-width="1"/>
+<text x="1617.0" y="46" fill="#48d8b3" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0.8">VALIDATED · 17 SEP 2026</text>
+<text x="64" y="109" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="49" font-weight="700" text-anchor="start">Automated Identity Attack Detection &amp; Response</text>
+<text x="64" y="154" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="25" font-weight="400" text-anchor="start">Automatic detection. Local approval. Verified account disabling.</text>
+<path d="M 64 187 H 1736" fill="none" stroke="#29415a" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="64" y="230" fill="#49b7ff" font-family="DejaVu Sans Mono, monospace" font-size="20" font-weight="700" text-anchor="start">01</text>
+<text x="112" y="230" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="28" font-weight="700" text-anchor="start">Detect automatically</text>
+<text x="1736" y="230" fill="#819ab4" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="400" text-anchor="end">MITRE ATT&amp;CK T1110.003 · Password spraying</text>
+<rect x="64" y="262" width="388" height="233" rx="19" fill="#102238" stroke="#29415a" stroke-width="1"/>
+<rect x="88" y="286" width="4" height="28" rx="2" fill="#49b7ff"/>
+<text x="106" y="306" fill="#49b7ff" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1.15">TEST ENDPOINT</text>
+<text x="88" y="354" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="34" font-weight="700" text-anchor="start">VICTIM-B</text>
+<text x="88" y="398" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">Five controlled failed</text>
+<text x="88" y="431" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">SMB logons to DC-01</text>
+<text x="88" y="472" fill="#819ab4" font-family="DejaVu Sans Mono, monospace" font-size="19" font-weight="400" text-anchor="start">192.168.226.133</text>
+<rect x="492" y="262" width="388" height="233" rx="19" fill="#102238" stroke="#29415a" stroke-width="1"/>
+<rect x="516" y="286" width="4" height="28" rx="2" fill="#49b7ff"/>
+<text x="534" y="306" fill="#49b7ff" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1.15">DOMAIN CONTROLLER</text>
+<text x="516" y="354" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="34" font-weight="700" text-anchor="start">DC-01</text>
+<text x="516" y="398" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">Active Directory + DNS</text>
+<text x="516" y="431" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">Forwards Event 4625 via UF</text>
+<text x="516" y="472" fill="#819ab4" font-family="DejaVu Sans Mono, monospace" font-size="19" font-weight="400" text-anchor="start">192.168.226.132</text>
+<rect x="920" y="262" width="388" height="233" rx="19" fill="#102238" stroke="#29415a" stroke-width="1"/>
+<rect x="944" y="286" width="4" height="28" rx="2" fill="#49b7ff"/>
+<text x="962" y="306" fill="#49b7ff" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1.15">SIEM + CONNECTOR</text>
+<text x="944" y="354" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="34" font-weight="700" text-anchor="start">SIEM-01</text>
+<text x="944" y="398" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">Splunk: 5-minute correlation</text>
+<text x="944" y="431" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">60-second polling + dedup</text>
+<text x="944" y="472" fill="#819ab4" font-family="DejaVu Sans Mono, monospace" font-size="19" font-weight="400" text-anchor="start">192.168.226.129</text>
+<rect x="1348" y="262" width="388" height="233" rx="19" fill="#102238" stroke="#29415a" stroke-width="1"/>
+<rect x="1372" y="286" width="4" height="28" rx="2" fill="#48d8b3"/>
+<text x="1390" y="306" fill="#48d8b3" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1.15">ORCHESTRATION</text>
+<text x="1372" y="354" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="34" font-weight="700" text-anchor="start">SOAR-01</text>
+<text x="1372" y="398" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">Shuffle SOAR + Docker</text>
+<text x="1372" y="431" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">Validates alert conditions</text>
+<text x="1372" y="472" fill="#819ab4" font-family="DejaVu Sans Mono, monospace" font-size="19" font-weight="400" text-anchor="start">192.168.226.134</text>
+<path d="M 457 370 H 484" fill="none" stroke="#49b7ff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-blue)"/>
+<path d="M 885 370 H 912" fill="none" stroke="#49b7ff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-blue)"/>
+<path d="M 1313 370 H 1340" fill="none" stroke="#49b7ff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-blue)"/>
+<text x="64" y="559" fill="#49b7ff" font-family="DejaVu Sans Mono, monospace" font-size="20" font-weight="700" text-anchor="start">02</text>
+<text x="112" y="559" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="28" font-weight="700" text-anchor="start">Require approval before response</text>
+<path d="M 1542 500 V 596 H 324 V 639" fill="none" stroke="#48d8b3" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-green)"/>
+<rect x="618" y="577" width="778" height="37" rx="8" fill="#081321"/>
+<text x="1007" y="602" fill="#48d8b3" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="500" text-anchor="middle">Authenticated POST /disable-users · HTTP 8081</text>
+<rect x="64" y="650" width="520" height="322" rx="20" fill="#102238" stroke="#ffbd60" stroke-width="1.4"/>
+<rect x="88" y="674" width="4" height="27" rx="2" fill="#ffbd60"/>
+<rect x="640" y="650" width="520" height="322" rx="20" fill="#102238" stroke="#ffbd60" stroke-width="1.4"/>
+<rect x="664" y="674" width="4" height="27" rx="2" fill="#ffbd60"/>
+<rect x="1216" y="650" width="520" height="322" rx="20" fill="#102238" stroke="#48d8b3" stroke-width="1.4"/>
+<rect x="1240" y="674" width="4" height="27" rx="2" fill="#48d8b3"/>
+<text x="106" y="695" fill="#ffbd60" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="1">LIVE REQUEST · DC-01</text>
+<text x="88" y="744" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="32" font-weight="700" text-anchor="start">Awaiting approval</text>
+<rect x="88" y="768" width="472" height="42" rx="8" fill="#332b20"/>
+<text x="106" y="797" fill="#ffbd60" font-family="DejaVu Sans Mono, monospace" font-size="22" font-weight="500" text-anchor="start">202 · pending_approval</text>
+<text x="88" y="848" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="400" text-anchor="start">No AD changes before approval.</text>
+<text x="88" y="883" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="400" text-anchor="start">HTTP callers cannot self-approve.</text>
+<text x="88" y="941" fill="#819ab4" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="400" text-anchor="start">PowerShell responder on DC-01</text>
+<text x="682" y="695" fill="#ffbd60" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="1">HUMAN REVIEW · DC-01</text>
+<text x="664" y="744" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="30" font-weight="700" text-anchor="start">Local operator approval</text>
+<text x="664" y="789" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">Review source, users, and evidence.</text>
+<text x="664" y="824" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">Record operator identity and reason.</text>
+<text x="664" y="859" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">15-min default expiry · exact request</text>
+<rect x="664" y="881" width="472" height="66" rx="10" fill="#332b20"/>
+<text x="680" y="906" fill="#ffbd60" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1">MANUAL RESUBMISSION</text>
+<text x="680" y="932" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="400" text-anchor="start">Send the same alert again from Shuffle.</text>
+<text x="1258" y="695" fill="#48d8b3" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="1">APPROVED RESPONSE · DC-01</text>
+<text x="1240" y="744" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="32" font-weight="700" text-anchor="start">Disable + verify</text>
+<text x="1240" y="789" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">Check all five users and their OU.</text>
+<text x="1240" y="824" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">Disable eligible lab accounts.</text>
+<text x="1240" y="859" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">Read AD state back from the same DC.</text>
+<rect x="1240" y="881" width="472" height="66" rx="10" fill="#103d35"/>
+<text x="1258" y="907" fill="#48d8b3" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1">SUCCESS REQUIRES</text>
+<text x="1258" y="934" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start">5 / 5 accounts verified disabled</text>
+<path d="M 590 806 H 632" fill="none" stroke="#ffbd60" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-amber)"/>
+<path d="M 1166 806 H 1208" fill="none" stroke="#48d8b3" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-green)"/>
+<text x="64" y="1035" fill="#49b7ff" font-family="DejaVu Sans Mono, monospace" font-size="20" font-weight="700" text-anchor="start">03</text>
+<text x="112" y="1035" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="28" font-weight="700" text-anchor="start">Audit independently</text>
+<path d="M 1476 978 V 1071" fill="none" stroke="#49b7ff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-blue)" stroke-dasharray="8 8"/>
+<rect x="64" y="1081" width="1672" height="130" rx="19" fill="#102238" stroke="#29415a" stroke-width="1"/>
+<text x="88" y="1128" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="26" font-weight="700" text-anchor="start">DC-01 · Event 4725</text>
+<path d="M 453 1120 H 505" fill="none" stroke="#49b7ff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-blue)"/>
+<text x="534" y="1128" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="26" font-weight="700" text-anchor="start">SIEM-01 · Splunk</text>
+<path d="M 870 1120 H 922" fill="none" stroke="#49b7ff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-blue)"/>
+<text x="955" y="1128" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="25" font-weight="700" text-anchor="start">Analyst checks users, actor, and time</text>
+<text x="88" y="1180" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="400" text-anchor="start">Separate manual audit. Automatic response verification comes from Active Directory readback.</text>
+<text x="64" y="1266" fill="#f3f7fc" font-family="DejaVu Sans, sans-serif" font-size="27" font-weight="700" text-anchor="start">Safeguards and lab boundaries</text>
+<path d="M 64 1291 H 452" fill="none" stroke="#29415a" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="64" y="1327" fill="#48d8b3" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start">Request-bound approval</text>
+<text x="64" y="1363" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="400" text-anchor="start">Protected local approval records</text>
+<text x="64" y="1394" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="400" text-anchor="start">Source, time, domain, and users</text>
+<path d="M 492 1291 H 880" fill="none" stroke="#29415a" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="492" y="1327" fill="#49b7ff" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start">Limited account scope</text>
+<text x="492" y="1363" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="400" text-anchor="start">Five-user allowlist + dedicated OU</text>
+<text x="492" y="1394" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="400" text-anchor="start">Source-IP check + separate keys</text>
+<path d="M 920 1291 H 1308" fill="none" stroke="#29415a" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="920" y="1327" fill="#49b7ff" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start">Execution safeguards</text>
+<text x="920" y="1363" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="400" text-anchor="start">Dry run + durable processing claim</text>
+<text x="920" y="1394" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="400" text-anchor="start">Completed replay returns prior result</text>
+<path d="M 1348 1291 H 1736" fill="none" stroke="#29415a" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1348" y="1327" fill="#ffbd60" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start">Isolated lab boundary</text>
+<text x="1348" y="1363" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="400" text-anchor="start">SYSTEM on DC-01 · internal HTTP</text>
+<text x="1348" y="1394" fill="#b8c9dc" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="400" text-anchor="start">Single-source, short-window detection</text>
+<text x="64" y="1449" fill="#819ab4" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="400" text-anchor="start">LAB VALIDATION: five accounts verified disabled + five matching account-disable events in Splunk.</text>
+<text x="1736" y="1449" fill="#819ab4" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="end">APPROVAL FLOW · v2</text>
+</svg>

@@ -1,10 +1,14 @@
 # Automated Identity Attack Detection and Response
 
-## Approval and verification revision
+## Current architecture and approval flow
 
 The current responder requires a local operator's approval before changing any
 account. Failed logons establish suspected password spraying; they do not prove
 an account was compromised or justify automatically disabling its owner.
+
+![Current architecture: automated detection, local approval, verified response, and separate audit](diagrams/architecture-diagram.png)
+
+[Open the full-size diagram](diagrams/architecture-diagram.png) · [Scalable SVG](diagrams/architecture-diagram.svg) · [Architecture details](docs/architecture.md)
 
 The revised flow is:
 
@@ -83,9 +87,9 @@ The final step verifies that the response actually happened by searching Splunk 
 - Suppresses duplicate alerts to prevent repeated response actions
 - Confirms containment using Windows Security Event ID `4725`
 
-## Lab architecture
+## Original lab architecture (v1)
 
-![Lab architecture diagram](diagrams/architecture-diagram.png)
+![Historical v1 architecture: original direct response](diagrams/architecture-diagram-v1.png)
 
 | System | Role in the lab | IP address |
 | --- | --- | --- |
