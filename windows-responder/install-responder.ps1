@@ -16,7 +16,6 @@ $ResponderPath = Join-Path $InstallDirectory "SOAR-AD-Responder.ps1"
 $KeyPath = Join-Path $InstallDirectory "response.key"
 $TaskName = "SOAR AD Responder"
 $FirewallName = "SOAR AD Responder from SOAR-01"
-$ErrorActionPreference = 'Stop'
 $SoarHostIP = [Net.IPAddress]::Parse($SoarHostIP).ToString()
 
 if (-not (Test-Path $ResponderSource)) {

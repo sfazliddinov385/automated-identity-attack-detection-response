@@ -22,6 +22,21 @@ function Initialize-SOARState {
     }
 }
 
+function ConvertTo-SOARTime {
+    param([object]$Value)
+    # ConvertFrom-Json can materialize ISO timestamps as DateTime on some PS
+    # versions. Preserve their time-zone information instead of string-casting.
+    if ($Value -is [DateTimeOffset]) { return $Value }
+    if ($Value -is [DateTime]) {
+        if ($Value.Kind -eq [DateTimeKind]::Unspecified) { throw 'Timestamp requires an explicit time zone.' }
+        return [DateTimeOffset]$Value
+    }
+    if ($Value -isnot [string] -or $Value -notmatch '(Z|[+-][0-9]{2}:[0-9]{2})$') {
+        throw 'Timestamp requires an explicit time zone.'
+    }
+    return [DateTimeOffset]::Parse($Value, [Globalization.CultureInfo]::InvariantCulture)
+}
+
 function Get-SOARRequest {
     param([Parameter(Mandatory)]$Payload)
     $AllowedUsers = @('spray.user01', 'spray.user02', 'spray.user03', 'spray.user04', 'spray.user05')
@@ -34,8 +49,7 @@ function Get-SOARRequest {
     if ([string]$Payload.domain -ine 'LAB') { throw 'Unexpected domain.' }
     $Address = $null
     if (-not [Net.IPAddress]::TryParse([string]$Payload.source_ip, [ref]$Address)) { throw 'Invalid source IP.' }
-    $EventTime = [DateTimeOffset]::MinValue
-    if (-not [DateTimeOffset]::TryParse([string]$Payload.event_time, [ref]$EventTime)) { throw 'Invalid event time.' }
+    $EventTime = ConvertTo-SOARTime $Payload.event_time
     $RawUsers = @($Payload.targeted_users)
     $Users = @($RawUsers | ForEach-Object { ([string]$_).ToLowerInvariant() } | Sort-Object -Unique)
     # The deployed lab response is deliberately limited to this exact set.
@@ -151,8 +165,8 @@ function Invoke-SOARResponse {
         }
         try {
             $Approval = Get-Content -LiteralPath $ApprovalPath -Raw -ErrorAction Stop | ConvertFrom-Json
-            $Issued = [DateTimeOffset]::Parse($Approval.approved_at)
-            $Expiry = [DateTimeOffset]::Parse($Approval.expires_at)
+            $Issued = ConvertTo-SOARTime $Approval.approved_at
+            $Expiry = ConvertTo-SOARTime $Approval.expires_at
             $Now = [DateTimeOffset]::UtcNow
             if ($Approval.request_id -cne $Id -or $Approval.decision -cne 'approve' -or
                 [string]::IsNullOrWhiteSpace($Approval.approved_by) -or [string]::IsNullOrWhiteSpace($Approval.reason) -or
@@ -190,7 +204,7 @@ function Invoke-SOARResponse {
     }
 
     # Atomic, durable claim BEFORE side effects. A crash requires manual review.
-    if ([DateTimeOffset]::Parse($Approval.expires_at) -le [DateTimeOffset]::UtcNow) {
+    if ((ConvertTo-SOARTime $Approval.expires_at) -le [DateTimeOffset]::UtcNow) {
         return New-SOARReply 403 @{ success = $false; status = 'approval_rejected'; request_id = $Id; reason = 'Approval expired during preflight.' }
     }
     try {

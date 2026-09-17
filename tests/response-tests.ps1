@@ -132,6 +132,20 @@ try {
         [array]::Reverse($script:Payload.targeted_users)
         Assert-Equal (Get-SOARRequest $script:Payload).request_id $First.request_id
     }
+    Run-Case 'Equivalent timestamp offsets preserve approval identity' {
+        $First = Get-SOARRequest $script:Payload
+        $script:Payload.event_time = '2026-08-20T13:16:00-05:00'
+        Assert-Equal (Get-SOARRequest $script:Payload).request_id $First.request_id
+    }
+    Run-Case 'JSON DateTime values preserve UTC identity' {
+        $First = Get-SOARRequest $script:Payload
+        $script:Payload.event_time = [DateTime]::SpecifyKind([DateTime]::new(2026, 8, 20, 18, 16, 0), [DateTimeKind]::Utc)
+        Assert-Equal (Get-SOARRequest $script:Payload).request_id $First.request_id
+    }
+    Run-Case 'Ambiguous timestamps without a time zone are rejected' {
+        $script:Payload.event_time = '2026-08-20T18:16:00'
+        Assert-Equal (Invoke-TestResponse).StatusCode 400
+    }
     Run-Case 'Expired approval fails closed' {
         $Id = Approve-Fixture; $Path = Join-Path $script:State "approvals/$Id.json"
         $Grant = Get-Content $Path -Raw | ConvertFrom-Json
