@@ -23,10 +23,13 @@ setting `approved: true`. Request IDs bind approval to the source, event time,
 domain, detection, and exact user set. A durable processing record prevents
 automatic replay after execution starts.
 
-**Validation status:** this is a code and workflow revision. The original VM
-screenshots below show the earlier automatic-response lab, not a rerun of the
-new approval flow. Automated tests use fake AD commands. A fresh Windows/AD,
-Shuffle, and Splunk integration run is still required.
+**Validation status:** the core approval flow was exercised in the VMware lab on
+2026-09-17: fresh detection delivery, dry-run preview, pending approval, local
+operator approval, resubmission, five verified disabled accounts, and five
+corresponding account-disable events in Splunk. See the
+[dated validation record](docs/validation-2026-09-17.md) for evidence and limits.
+The original screenshots below remain historical v1 evidence. Automated tests
+use fake AD commands; additional live failure-path checks remain outstanding.
 
 - [Install, review, resume, and verify the revised flow](docs/approval-and-verification.md)
 - [Current responder setup](windows-responder/README.md)

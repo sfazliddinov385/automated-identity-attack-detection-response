@@ -25,9 +25,11 @@ or event time, expired/malformed approvals, a user leaving the OU, invalid user
 sets, dry-run behavior, successful readback, failed commands, unchanged accounts,
 unavailable readback, repeated requests, and interrupted execution.
 
-## New VM integration checklist — not yet executed for this revision
+## VM integration checklist — core flow demonstrated, full checklist incomplete
 
-Record new screenshots and timestamps when actually performing these checks.
+See [the 2026-09-17 validation record](validation-2026-09-17.md) for observed
+results. This list remains the broader checklist, not a claim that every item
+passed in the live lab. Record evidence for each additional check.
 
 1. Install in dry-run mode on the isolated lab DC. Verify the listener, firewall
    restriction, task arguments, and protected file/state ACLs.

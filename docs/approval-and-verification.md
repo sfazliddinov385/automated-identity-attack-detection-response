@@ -167,5 +167,7 @@ delegation. Trusted TLS, delegated service permissions, protected central logs,
 health monitoring, and a richer review interface remain production work. The
 original single-source detection, short window, and `head 1` limit also remain.
 
-Existing screenshots document v1. Run the new validation checklist before
-claiming this revision has been demonstrated end to end in Windows/AD/Shuffle.
+Existing screenshots below the original README narrative document v1. The core
+approval flow was demonstrated on 2026-09-17; see
+[the validation record](validation-2026-09-17.md). The complete failure-path
+checklist has not been exercised in the live lab.
