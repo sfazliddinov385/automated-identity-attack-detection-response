@@ -1,66 +1,53 @@
 # Security controls
 
-## Authentication
+## Request authentication and policy
 
-Two independent shared secrets are used:
+The connector-to-Shuffle key and Shuffle-to-responder key remain separate.
+The HTTP responder checks the source IP, authentication header, method/path,
+actual request byte count (64 KiB maximum), and normalized alert contract.
 
-| Integration | Header | Storage |
-| --- | --- | --- |
-| SIEM-01 to Shuffle | `X-SOAR-LAB-KEY` | Private file on SIEM-01 and Shuffle authentication configuration |
-| Shuffle to DC-01 | `X-SOAR-RESPONSE-KEY` | Protected file on DC-01 and Shuffle HTTP action |
+The live response accepts only the exact five purpose-built lab users in the
+LAB domain. All users are read and checked against the authorized OU before
+any change. Every HTTP outcome is logged without keys or raw request bodies.
 
-No secret values are stored in this repository.
+## Approval authority
 
-## Authorization
+A valid alert is only a request. Live changes require a protected local approval
+created by an operator using `Approve-SOARRequest.ps1`. Approval includes the
+operator identity, review reason, issue time, and a short expiry.
 
-The response action is limited through multiple controls:
+The request ID binds the source, event time, domain, detection, severity, and
+exact user set. Caller-supplied approval fields are ignored. There is no HTTP
+approval route. The installer sets SYSTEM/Administrators-only ACLs on the root
+and resets child ACLs so older explicit grants cannot leave state writable.
 
-1. Windows Firewall accepts TCP 8081 only from SOAR-01.
-2. The service independently checks the remote source address.
-3. The request must describe the expected high-severity detection.
-4. The account count must be at least five.
-5. Every account must appear in an exact username allowlist.
-6. Every account must remain inside `OU=SOAR-Lab-Users`.
+These ACLs are part of the trust boundary. A local administrator or SYSTEM can
+change approvals or code; this mechanism does not defend against either being
+compromised. Production separation of duties requires a different deployment.
 
-This is defense in depth: bypassing one check is not enough to gain unrestricted
-account-management capability.
+## Execution and outcome
 
-## Safe response lifecycle
+Dry run changes nothing and never reports verified success. Live requests create
+a durable exclusive processing claim before any AD changes. Interrupted actions
+require manual inspection; replay cannot silently restart them. Final results,
+including partial failure, are preserved.
 
-The responder defaults to dry-run mode. Live account changes require an
-explicit installer switch. The project used this sequence:
+Each action is followed by AD state readback on the same DC. Overall success
+requires all five accounts verified disabled. A cached result is explicitly
+historical and is not a fresh check of current state.
 
-```text
-Authentication failure test → dry-run test → result inspection
-→ explicit live-response enablement → controlled final test
-```
+Splunk Event ID 4725 remains a separate audit source. The connector records only
+Shuffle delivery acceptance, not completed account containment.
 
-## Auditing and deduplication
+## Remaining production work
 
-- The responder writes one JSON-line record per processed request.
-- Active Directory independently creates Event ID `4725`.
-- Splunk preserves the response events for investigation.
-- The connector stores a SHA-256 fingerprint only after successful delivery.
-- Duplicate detections do not trigger repeated containment.
+The lab still uses a SYSTEM task on a domain controller, internal HTTP to the
+responder, and optional disabled TLS verification for self-signed lab services.
+The OU allowlist is a code restriction, not delegated least-privilege AD rights.
 
-## Secret handling
+Production work includes trusted TLS, narrow delegated service permissions,
+managed secrets, central protected auditing, monitoring, capacity controls,
+production-specific detection tuning, and an approved recovery process.
 
-The `.gitignore` excludes credential, key, webhook, state, log, certificate,
-and local environment files. Before every public release, scan the repository
-for private key material, authentication-header values, passwords, and live
-webhook identifiers.
-
-## Lab limitations
-
-The isolated lab used internal HTTP and self-signed TLS. These choices are not
-appropriate for production. A production design should use:
-
-- Trusted TLS certificates and certificate validation
-- A secrets manager with rotation and access logging
-- Managed service accounts with minimal rights
-- Human approval for high-impact or ambiguous cases
-- Centralized immutable response logs
-- Rate limiting and request replay protection
-- High availability and health monitoring
-- Production-specific account exclusions and detection tuning
+See [approval and recovery details](approval-and-verification.md).
 

@@ -1,5 +1,10 @@
 # Architecture
 
+> Historical v1 architecture below. The current responder adds local operator
+> approval before account changes and automatic AD state readback afterward.
+> See [the current flow](approval-and-verification.md). Existing diagrams describe
+> the original direct-response test.
+
 ## Network design
 
 The project was implemented on an isolated VMware network using four active

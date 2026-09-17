@@ -1,67 +1,66 @@
-# Testing and results
+# Testing and validation
 
-## Test objective
+## Current revision: automated tests
 
-Validate that five failed authentication attempts against five distinct lab
-accounts trigger exactly one automated containment workflow.
+The PowerShell suite supplies fake Get-ADUser and Disable-ADAccount functions.
+It imports neither ActiveDirectory nor the HTTP service, and never contacts a
+domain controller or changes real accounts. It also parses every PowerShell
+script to catch syntax errors.
 
-## Preconditions
-
-- All hosts are on the isolated `192.168.226.0/24` VMware network.
-- `spray.user01` through `spray.user05` are enabled.
-- Splunk is receiving Event ID `4625` data from DC-01.
-- The connector service is active.
-- The Shuffle webhook is running.
-- The Windows responder is listening on port 8081.
-- Dry-run testing has passed before live response is enabled.
-
-## Procedure
-
-1. Run the controlled simulation from VICTIM-B.
-2. Confirm Windows error `1326` for each intentionally incorrect password.
-3. Wait for the connector's next 60-second polling cycle.
-4. Confirm one alert is sent to Shuffle.
-5. Confirm later polling cycles log `Duplicate skipped`.
-6. Open the Shuffle run and verify the response node returns HTTP `200`.
-7. Verify all five AD accounts show `Enabled=False`.
-8. Search Splunk for Event ID `4725`.
-
-## Observed result
-
-| Check | Result |
-| --- | --- |
-| Five distinct target accounts detected | Pass |
-| Severity set to High | Pass |
-| MITRE mapping set to T1110.003 | Pass |
-| Connector delivered alert automatically | Pass |
-| Duplicate executions suppressed | Pass |
-| Shuffle validation branch passed | Pass |
-| Responder authentication passed | Pass |
-| Live response returned HTTP 200 | Pass |
-| Five lab users disabled | Pass |
-| Five Event ID 4725 events indexed | Pass |
-
-## Final execution timeline
-
-```text
-13:16 local  Failed-logon sequence completed
-13:17 local  Connector sent alert to Shuffle
-13:17 local  Shuffle invoked the response service
-13:17 local  Responder disabled the five lab accounts
-13:18+       Connector suppressed repeated matching results
+```powershell
+./tests/response-tests.ps1
 ```
 
-## Expected negative tests
+The connector suite uses fake API results and temporary local state:
 
-The responder should reject:
+```bash
+python3 -m unittest discover -s tests -p 'test_*.py'
+```
 
-- Missing or incorrect authentication header (`401`)
-- Request from an unapproved source (`403`)
-- Incorrect method or path (`404`)
-- Oversized request (`413`)
-- Detection name other than `Password Spraying Detected` (`400`)
-- Severity other than `High` (`400`)
-- Fewer than five targeted accounts (`400`)
-- Username outside the exact allowlist
-- Allowlisted name moved outside the authorized OU
+GitHub Actions runs the response suite in Windows PowerShell 5.1 and PowerShell
+7, and the connector suite on Linux. Test results are visible on the branch/PR.
+
+Covered cases include unapproved and forged-approval requests, changed source
+or event time, expired/malformed approvals, a user leaving the OU, invalid user
+sets, dry-run behavior, successful readback, failed commands, unchanged accounts,
+unavailable readback, repeated requests, and interrupted execution.
+
+## New VM integration checklist — not yet executed for this revision
+
+Record new screenshots and timestamps when actually performing these checks.
+
+1. Install in dry-run mode on the isolated lab DC. Verify the listener, firewall
+   restriction, task arguments, and protected file/state ACLs.
+2. Confirm wrong keys and unapproved source hosts are rejected and audited.
+3. Submit a valid alert in dry-run mode. Verify no AD account changes and
+   `success=false, status=dry_run, verified=false`.
+4. Enable live mode and generate the controlled five-account test. Confirm the
+   initial HTTP 202 and verify all five accounts are still enabled.
+5. Try caller-supplied `approved=true`; confirm it grants no approval.
+6. Review the pending request locally, record a reason, and resume its unchanged
+   alert from Shuffle.
+7. Confirm all individual results, `status=verified`, five verified accounts,
+   approval identity/reason/time, and `verified_at`.
+8. Independently check AD state and corresponding 4725 events in Splunk. Match
+   target users, actor, and timestamps. Already-disabled accounts do not create
+   new disable events.
+9. Repeat the completed request. Confirm a cached historical result and no
+   additional account changes.
+10. Exercise an expired approval and a controlled readback/action failure. Verify
+    neither is presented as successful containment.
+11. Verify the Shuffle error path preserves partial-failure responses and does
+    not retry them automatically.
+
+The responder directly verifies AD state. It does not automatically verify
+Splunk ingestion of the audit events. Unit tests do not establish Windows ACL,
+firewall, real AD, or Shuffle integration behavior.
+
+## Original v1 test: historical evidence
+
+The earlier direct-response lab recorded five failed logons, one delivered
+detection, duplicate suppression, five disabled lab accounts, and five 4725
+events. The screenshots under `evidence/` document that original run.
+
+Those screenshots do not prove the new approval flow or its verification code
+was executed. Keep original results and new validation evidence clearly labeled.
 
