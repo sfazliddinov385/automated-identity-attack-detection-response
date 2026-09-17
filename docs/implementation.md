@@ -1,10 +1,9 @@
-# Implementation
+# Original implementation
 
-> Historical v1 implementation notes. Follow [the current operator guide](approval-and-verification.md)
-> for the approval and verification revision; the old direct-response sequence
-> below is not the current live-response policy.
+> These notes describe v1, which responded without a separate approval step.
+> For the current version, use the [approval and verification guide](approval-and-verification.md).
 
-## 1. Active Directory test identities
+## 1. Test accounts
 
 Five enabled users were created inside a dedicated OU:
 
@@ -18,7 +17,8 @@ spray.user04
 spray.user05
 ```
 
-The dedicated OU provides a hard boundary for automated response actions.
+The responder checks this OU before changing an account. That check is in the
+code; it does not limit the permissions of the SYSTEM task running the responder.
 
 ## 2. Windows event collection
 
@@ -28,13 +28,13 @@ System, and Application logs to SIEM-01 on TCP 9997.
 
 VICTIM-B also forwarded Windows Security, System, PowerShell, and Sysmon data.
 
-## 3. Detection engineering
+## 3. Splunk detection
 
-The detection query normalizes the lab username from Splunk's multivalue
-`Account_Name` extraction. It then uses `streamstats time_window=5m` to count
-events and distinct users by `Source_Network_Address`.
+The query selects the lab username from Splunk's multivalue `Account_Name`
+field. It then uses `streamstats time_window=5m` to count failed logins and
+different users for each `Source_Network_Address`.
 
-The result is enriched with:
+The query adds these fields to each matching result:
 
 ```text
 detection       Password Spraying Detected
@@ -45,8 +45,8 @@ status          New
 
 ## 4. Splunk REST connector
 
-Splunk Free does not provide the same scheduled-alert action workflow as the
-licensed edition. A Python connector was therefore implemented to:
+The lab's Splunk Free setup could not run scheduled alert actions. A Python
+connector handled the search and delivery instead:
 
 - Execute the detection through `/services/search/jobs/export`
 - Convert Splunk epoch timestamps to ISO-8601 UTC
@@ -57,27 +57,27 @@ licensed edition. A Python connector was therefore implemented to:
 
 ## 5. Shuffle workflow
 
-Shuffle receives the alert and validates three independent policy conditions.
-Only the valid branch reaches the HTTP response action. The inbound webhook and
-outbound responder use different secrets.
+Shuffle checks the alert's detection name, severity, and account count. All
+three conditions must pass before the HTTP response action runs. The webhook
+and responder use different keys.
 
 ## 6. Windows responder
 
-The original lab placed the responder on DC-01 for convenience. AD commands can
-also run from a configured management host with connectivity and delegated
-permissions. The original responder validates the alert,
-checks every requested identity against both an exact allowlist and the lab OU,
-then invokes `Disable-ADAccount`.
+The original lab ran the responder on DC-01 for convenience. AD commands can
+also run from a separate management host if it has the required connectivity
+and delegated permissions. The original responder checked the alert, checked
+every account against the allowed usernames and lab OU, then called
+`Disable-ADAccount`.
 
-The public installer generates the response key locally, locks directory ACLs,
-adds a source-restricted firewall rule, and creates the startup task.
+The installer generated a local response key, restricted directory permissions,
+added a firewall rule for SOAR-01's source IP, and created the startup task.
 
 ## 7. Response verification
 
-Two independent checks confirm containment:
+Two separate checks confirmed the account changes:
 
 1. `Get-ADUser` reports `Enabled=False` for all five users.
 2. Splunk receives five Event ID `4725` events from DC-01.
 
-This closes the loop from detection to response and audit evidence.
-
+These checks showed both the resulting account state and the Windows record
+of each disable action.

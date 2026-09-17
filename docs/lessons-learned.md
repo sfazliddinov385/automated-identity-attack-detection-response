@@ -1,46 +1,50 @@
 # Lessons learned
 
-## 1. Field normalization matters
+## Check the fields in the actual events
 
-The Windows target username appeared through Splunk's multivalue
-`Account_Name` extraction rather than the initially expected field. Inspecting
-raw events and normalizing the value was necessary before correlation worked.
+The target username appeared in Splunk's multivalue `Account_Name` field,
+rather than the field initially expected. The detection only worked after
+checking the raw events and selecting the correct username value.
 
-## 2. Event time and index time are different
+## Check the clocks when recent events look missing
 
-The VMs initially used different time zones and were not fully synchronized.
-Comparing `_time` with `_indextime`, aligning time zones, and enabling VMware
-time synchronization prevented recent events from appearing outside the
-expected search window.
+The VM clocks were not fully synchronized, and different time zones made the
+timestamps harder to compare. Comparing `_time` with `_indextime` helped
+identify the problem. Matching the time zones made troubleshooting easier;
+VMware time synchronization corrected the clock differences that affected
+the search window.
 
-## 3. Infrastructure problems can resemble workflow problems
+## An accepted webhook does not mean the workflow ran
 
-The first Shuffle execution remained in `EXECUTING` even though the webhook had
-accepted the alert. Worker logs revealed Docker Swarm DNS failures. Attaching
-the worker and HTTP services to the `shuffle_swarm_executions` overlay network
-restored service discovery.
+The first Shuffle execution stayed in `EXECUTING` after the webhook accepted
+the alert. The worker logs showed Docker Swarm DNS failures. Connecting the
+worker and HTTP services to the `shuffle_swarm_executions` overlay network
+let the services find each other again.
 
-## 4. Automation needs independent verification
+## Check the result of the account change
 
-An HTTP `200` from Shuffle proves that the request completed, but not by itself
-that Active Directory changed. Checking `Enabled=False` and Event ID `4725`
-provided independent confirmation.
+An HTTP `200` does not prove that an account was disabled. The updated responder
+checks `Enabled=False` in AD before reporting success. The separate Event 4725
+check in Splunk confirms that Windows recorded the disable action.
 
-## 5. High-impact actions need multiple guardrails
+## Require approval before disabling accounts
 
-The response service became safer and easier to explain after adding separate
-authentication, source-IP filtering, an exact user allowlist, an OU boundary,
-dry-run mode, and audit logging.
+The responder uses separate authentication, source-IP filtering, an exact
+account list, an OU check, dry-run mode, and logs. The update adds approval for
+each request before live account changes. The lab test showed the difference:
+the same request first returned `pending_approval`, then completed after local
+approval and resubmission from Shuffle.
 
-## 6. Duplicate suppression is part of response engineering
+## Expect the same alert to appear more than once
 
-The same rolling-window detection remains visible for multiple polling cycles.
-Without state, a connector can repeatedly launch the same workflow. Persisting
-a post-success fingerprint solved this while allowing new events to trigger.
+The same rolling-window result can appear in several consecutive searches.
+Saving a fingerprint after Shuffle accepts the alert prevents the connector
+from sending that same result on every poll. It remembers only the last
+delivered result, so it is not a complete history of duplicates.
 
-## 7. Build and test in phases
+## Test one connection at a time
 
-The most reliable sequence was:
+The original version was tested in this order:
 
 ```text
 Data ingestion → search validation → manual webhook test
@@ -49,6 +53,8 @@ Data ingestion → search validation → manual webhook test
 → full end-to-end validation
 ```
 
-This reduced the number of systems involved in each troubleshooting step and
-made failures easier to isolate.
+This kept each troubleshooting step small enough to identify which connection
+was failing. For the updated responder, testing also covered a request before
+approval, the same request after approval, the AD result, and the Event 4725
+records in Splunk.
 

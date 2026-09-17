@@ -1,53 +1,61 @@
 # Security controls
 
-## Request authentication and policy
+## Request checks
 
-The connector-to-Shuffle key and Shuffle-to-responder key remain separate.
-The HTTP responder checks the source IP, authentication header, method/path,
-actual request byte count (64 KiB maximum), and normalized alert contract.
+The connector uses one key to send alerts to Shuffle. Shuffle uses a different
+key to call the Windows responder. The responder checks the source IP, key,
+HTTP method, URL path, request size (64 KiB maximum), and required alert fields.
 
-The live response accepts only the exact five purpose-built lab users in the
-LAB domain. All users are read and checked against the authorized OU before
-any change. Every HTTP outcome is logged without keys or raw request bodies.
+The responder accepts only the five test users in the LAB domain. It checks
+that every account belongs to the lab OU before changing any account. It logs
+each HTTP outcome without recording keys or raw request bodies.
 
-## Approval authority
+## Approval
 
-A valid alert is only a request. Live changes require a protected local approval
-created by an operator using `Approve-SOARRequest.ps1`. Approval includes the
-operator identity, review reason, issue time, and a short expiry.
+A valid alert does not authorize an account change on its own. An administrator
+must approve it locally with `Approve-SOARRequest.ps1`. The approval records who
+approved it, their reason, and its start and expiry times.
 
-The request ID binds the source, event time, domain, detection, severity, and
-exact user set. Caller-supplied approval fields are ignored. There is no HTTP
-approval route. The installer sets SYSTEM/Administrators-only ACLs on the root
-and resets child ACLs so older explicit grants cannot leave state writable.
+Approval applies to a request ID calculated from the source, event time, domain,
+detection, severity, and exact account list. Adding an approval field to the
+HTTP request does not grant approval, and there is no HTTP approval endpoint.
+The installer restricts the response directory to SYSTEM and Administrators.
+It also resets permissions on the files and folders inside it to remove any
+older grants of access.
 
-These ACLs are part of the trust boundary. A local administrator or SYSTEM can
-change approvals or code; this mechanism does not defend against either being
-compromised. Production separation of duties requires a different deployment.
+An administrator or SYSTEM can still change the approval files or code. These
+checks do not protect against someone who already controls either identity.
+A production design would need to separate approval permissions from the
+permissions used to run the response.
 
-## Execution and outcome
+## Account changes and results
 
-Dry run changes nothing and never reports verified success. Live requests create
-a durable exclusive processing claim before any AD changes. Interrupted actions
-require manual inspection; replay cannot silently restart them. Final results,
-including partial failure, are preserved.
+Dry-run mode changes nothing and never reports verified success. Before making
+AD changes, a live request saves a record that processing has started. This
+prevents another copy of the same request from starting the changes again.
+If processing stops unexpectedly, an administrator must inspect the result.
+The responder saves completed results, including partial failures.
 
-Each action is followed by AD state readback on the same DC. Overall success
-requires all five accounts verified disabled. A cached result is explicitly
-historical and is not a fresh check of current state.
+After acting on an account, the responder reads its state from the same DC.
+It reports success only when all five accounts are confirmed disabled. Sending
+a completed request again returns the saved result, clearly marked as cached;
+it does not check the current account state again.
 
-Splunk Event ID 4725 remains a separate audit source. The connector records only
-Shuffle delivery acceptance, not completed account containment.
+Windows Event 4725 is checked separately in Splunk. The connector's delivery
+record means Shuffle accepted the alert; it does not confirm that accounts
+were disabled.
 
-## Remaining production work
+## What still needs work
 
-The lab still uses a SYSTEM task on a domain controller, internal HTTP to the
-responder, and optional disabled TLS verification for self-signed lab services.
-The OU allowlist is a code restriction, not delegated least-privilege AD rights.
+The lab still runs the responder as SYSTEM on a domain controller and sends
+requests to it over HTTP. Some lab connections can also skip TLS certificate
+verification for self-signed services. The OU check restricts what the code
+will change, but it does not reduce the task's AD permissions.
 
-Production work includes trusted TLS, narrow delegated service permissions,
-managed secrets, central protected auditing, monitoring, capacity controls,
-production-specific detection tuning, and an approved recovery process.
+Before using this outside the lab, it would need trusted TLS certificates, a
+service account with limited AD permissions, and a way to store and rotate
+keys. It would also need protected central logs, service monitoring, limits on
+request load, detections tested against normal activity, and a documented way
+to recover from failed or mistaken responses.
 
 See [approval and recovery details](approval-and-verification.md).
-

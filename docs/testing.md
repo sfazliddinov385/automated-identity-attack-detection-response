@@ -1,17 +1,16 @@
-# Testing and validation
+# Testing the lab
 
-## Current revision: automated tests
+## Automated tests
 
-The PowerShell suite supplies fake Get-ADUser and Disable-ADAccount functions.
-It imports neither ActiveDirectory nor the HTTP service, and never contacts a
-domain controller or changes real accounts. It also parses every PowerShell
-script to catch syntax errors.
+The PowerShell tests use simulated `Get-ADUser` and `Disable-ADAccount` results.
+They do not start the HTTP service, connect to AD, or change real accounts. They
+also check the PowerShell scripts for syntax errors.
 
 ```powershell
 ./tests/response-tests.ps1
 ```
 
-The connector suite uses fake API results and temporary local state:
+The connector tests use simulated API results and temporary files:
 
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py'
@@ -20,16 +19,16 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 GitHub Actions runs the response suite in Windows PowerShell 5.1 and PowerShell
 7, and the connector suite on Linux. Test results are visible on the branch/PR.
 
-Covered cases include unapproved and forged-approval requests, changed source
-or event time, expired/malformed approvals, a user leaving the OU, invalid user
-sets, dry-run behavior, successful readback, failed commands, unchanged accounts,
-unavailable readback, repeated requests, and interrupted execution.
+The tests cover missing or forged approvals, changed alert details, expired or
+invalid approvals, users outside the allowed OU, and incorrect usernames. They
+also cover dry runs, successful AD checks, failed commands, accounts that remain
+enabled, failed AD reads, repeated requests, and interrupted actions.
 
-## VM integration checklist — core flow demonstrated, full checklist incomplete
+## Checks on the VMs
 
-See [the 2026-09-17 validation record](validation-2026-09-17.md) for observed
-results. This list remains the broader checklist, not a claim that every item
-passed in the live lab. Record evidence for each additional check.
+The [September 17 test record](validation-2026-09-17.md) shows which steps were
+completed. The list below also includes checks that have not been run on the VMs.
+Keep the results of each additional test.
 
 1. Install in dry-run mode on the isolated lab DC. Verify the listener, firewall
    restriction, task arguments, and protected file/state ACLs.
@@ -57,13 +56,13 @@ The responder directly verifies AD state. It does not automatically verify
 Splunk ingestion of the audit events. Unit tests do not establish Windows ACL,
 firewall, real AD, or Shuffle integration behavior.
 
-## Original v1 test: historical evidence
+## Earlier test
 
 The earlier direct-response lab recorded five failed logons, one delivered
 detection, duplicate suppression, five disabled lab accounts, and five 4725
 events. The seven original screenshots directly under `evidence/` document that
 original run. The new approval-flow captures are under `evidence/2026-09-17/`.
 
-Those screenshots do not prove the new approval flow or its verification code
-was executed. Keep original results and new validation evidence clearly labeled.
+Use the dated screenshots when describing the updated response. The original
+screenshots show the earlier version, before approval and automatic AD checks.
 

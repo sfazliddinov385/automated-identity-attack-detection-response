@@ -1,14 +1,15 @@
 # Splunk-to-Shuffle connector
 
-The connector polls the local Splunk REST API every 60 seconds, normalizes a
-matching detection into JSON, sends it to an authenticated Shuffle webhook, and
-records a fingerprint after successful delivery.
+The connector checks Splunk every 60 seconds. When the search finds a match, it
+formats the result as JSON and sends it to Shuffle through an authenticated
+webhook. It then saves a fingerprint of the alert to avoid sending the same
+result again.
 
-Delivery means Shuffle accepted the webhook, not that an account response
-completed. State records `delivery_status: accepted_by_shuffle`. The current
-responder requires local approval and verifies AD state after acting; see the
-[review and verification guide](../docs/approval-and-verification.md).
-The connector does not resume pending requests or monitor Shuffle completion.
+`delivery_status: accepted_by_shuffle` means Shuffle accepted the alert. The
+connector does not check whether the workflow finished or any accounts changed.
+Account changes require approval on DC-01, followed by a manual resend of the
+same alert from Shuffle. The responder then checks each account in AD. See the
+[approval and verification guide](../docs/approval-and-verification.md).
 
 ## Private files
 
@@ -45,9 +46,9 @@ To start the user service at boot without an interactive login:
 sudo loginctl enable-linger "$USER"
 ```
 
-## Safe validation
+## Check the search without sending an alert
 
-This checks historical data without notifying Shuffle:
+This searches the previous 24 hours without sending anything to Shuffle:
 
 ```bash
 ~/.soar-connector/splunk_to_shuffle.py \
@@ -69,10 +70,13 @@ The following environment variables are optional:
 
 Set `SOAR_VERIFY_TLS=true` when a trusted certificate chain is available.
 
-## Deduplication
+## Duplicate alerts
 
-After a successful webhook delivery, the connector writes a fingerprint to
-`state.json`. The fingerprint combines the source IP, last event time, and
-targeted users. Matching results are logged as `Duplicate skipped` and do not
-trigger another containment action.
+After Shuffle accepts an alert, the connector writes its fingerprint to
+`state.json`. The fingerprint uses the source IP, last event time, and targeted
+users. If the next result matches, it logs `Duplicate skipped` and does not send
+another webhook.
 
+Only the last fingerprint is stored. This is a basic duplicate check, not a
+history of every alert or response. It also will not resend an alert after you
+approve a pending request; that step is manual.

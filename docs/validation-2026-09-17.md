@@ -1,11 +1,11 @@
-# VMware lab validation — 2026-09-17
+# Lab test — September 17, 2026
 
 Responder revision: `c356035b4dd0851e72810dd557eb010b33e22bd5`.
-This record summarizes operator-provided terminal output, Shuffle execution
-results, and the original Shuffle/Splunk screenshots captured during validation. It is not an
-independent remote examination of the VMs.
+These notes use the terminal output, Shuffle results, and screenshots saved
+during the lab test. They document that test rather than a separate review of
+the VMs.
 
-## Observed flow
+## What happened
 
 - DC-01 forwarded fresh Windows logs into Splunk after the VM pause.
 - Five controlled failed logins from VICTIM-B (`192.168.226.133`) produced
@@ -28,10 +28,10 @@ independent remote examination of the VMs.
 Request ID throughout approval and live execution:
 `fa9bfbdcd86f6032565c2f928df5b5b2187bd57ab694b75f3e4786267c3e9162`.
 
-## Separate Windows audit evidence
+## Windows audit events in Splunk
 
-The operator searched Splunk for EventCode 4725 on `WIN-3B0FE43Q9UR`.
-The provided screenshot showed "A user account was disabled" for each target:
+The Splunk search used EventCode 4725 on `WIN-3B0FE43Q9UR`.
+Its results showed "A user account was disabled" for each target:
 
 | Target | Splunk displayed time (CDT) |
 | --- | --- |
@@ -41,19 +41,18 @@ The provided screenshot showed "A user account was disabled" for each target:
 | spray.user04 | 2026-09-17 08:28:01.785 |
 | spray.user05 | 2026-09-17 08:28:01.814 |
 
-The event subject was SYSTEM (SID `S-1-5-18`), with the DC machine account
-`WIN-3B0FE43Q9UR$`; this is the execution identity, distinct from the approving
-operator. TargetUserName and SubjectUserName table columns were blank, but the
-raw Message contained the actor and target accounts. Audit verification was
-manual; the responder automatically verified AD state only.
+The events show SYSTEM (SID `S-1-5-18`) and the DC machine account
+`WIN-3B0FE43Q9UR$` as the account that performed the action. The administrator who
+approved the request is recorded separately. `TargetUserName` and `SubjectUserName`
+were blank in the table, but the Message field contained those details. The
+Splunk check was manual; the responder checked AD automatically.
 
-## Captured screenshots
+## Screenshots
 
-These are the operator's original captures, copied without image edits. The
-narrow Shuffle captures truncate long request IDs; the complete ID above comes
-from the corresponding pasted execution output.
+These screenshots have not been edited. The Shuffle screenshots cut off part of
+the long request ID; the full ID above comes from the saved execution output.
 
-### Request awaiting approval
+### Before approval
 
 The live responder returned HTTP 202 and reported no account changes before
 approval. `dry_run=false` distinguishes this from a preview. Shuffle's outer
@@ -61,7 +60,7 @@ approval. `dry_run=false` distinguishes this from a preview. Shuffle's outer
 
 ![Live request pending local approval](../evidence/2026-09-17/01-pending-approval.png)
 
-### Approved and verified response
+### After approval
 
 The response includes the approving operator, reason, and approval time, followed
 by five verified accounts. Individual account results are collapsed in this
@@ -69,7 +68,7 @@ capture; the separate audit screenshot names all five affected accounts.
 
 ![Approved request with five verified accounts](../evidence/2026-09-17/02-approved-response.png)
 
-### Separate Splunk audit
+### Account-disable events
 
 The messages show five account-disable events, their target users, SYSTEM actor,
 and timestamps matching the approved response. The screenshot is the results
@@ -77,7 +76,7 @@ table; the EventCode 4725 filter was supplied in the search used for this check.
 
 ![Five Windows account-disable events in Splunk](../evidence/2026-09-17/03-splunk-audit-4725.png)
 
-## Configuration and limits
+## Notes and untested cases
 
 The deployed Shuffle HTTP body was changed to `$exec` after an isolated action
 test returned "Missing alert field: detection" with the previous mapping.
@@ -85,10 +84,12 @@ A subsequent action test succeeded. The successful approved full workflow run
 also contained the unchanged alert. Local approval and explicit resubmission
 are manual steps, not a native Shuffle approval/resume interface.
 
-This validates the core approval and containment flow, not the entire live
-integration checklist. Live forged-approval, wrong-key/source, expiry,
-partial-failure, crash-recovery, and completed-request replay tests were not
-shown. No separate post-containment Get-ADUser output was supplied; evidence
-consists of responder readback plus the five independent audit events.
-Production boundaries (SYSTEM on the DC, internal HTTP, narrow detection,
-and limited connector deduplication) remain documented in the main guide.
+This test covered approval and a successful account response. It did not cover
+forged approvals, wrong keys or source IPs, expired approvals, partial failures,
+crash recovery, or resending a completed request on the live VMs. There was no
+separate `Get-ADUser` output after the action; the saved evidence is the
+responder's AD check and the five Windows audit events.
+
+The lab still uses SYSTEM on the DC, internal HTTP, a narrow detection rule, and
+a connector that remembers only its last delivered alert. Those limits are
+described in the main README.

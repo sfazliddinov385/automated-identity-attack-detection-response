@@ -1,14 +1,14 @@
 # Architecture diagrams
 
-- `architecture-diagram.png`: current approval flow, rendered at 2400 pixels wide.
-- `architecture-diagram.svg`: scalable version with accessible title and description.
-- `architecture-diagram-v1.png`: archived original diagram; direct response without
-  the new local approval step.
+- `architecture-diagram.png`: current workflow, 2400 pixels wide.
+- `architecture-diagram.svg`: version that stays sharp when resized, with a title
+  and description for screen readers.
+- `architecture-diagram-v1.png`: original workflow, before local approval was added.
 
-The current diagram distinguishes automatic detection, local operator approval,
-manual resubmission, AD readback, and a separate manual Event 4725 audit in Splunk.
-See [the validation record](../docs/validation-2026-09-17.md) for evidence and the
-limits of the live test.
+The current diagram shows which steps are automatic and which are manual:
+detection, approval on DC-01, resending the same alert, checking AD account state,
+and checking Event ID 4725 in Splunk. See [the lab test results](../docs/validation-2026-09-17.md)
+for what was tested and the remaining limitations.
 
 To regenerate the current SVG and PNG, install Inkscape and DejaVu Sans fonts,
 then run from the repository root:

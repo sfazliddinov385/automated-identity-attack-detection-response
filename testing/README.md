@@ -1,11 +1,10 @@
-# Controlled testing
+# Run the lab test
 
-These scripts exist only to reproduce the project inside an authorized,
-isolated lab.
+These scripts reproduce the test in an isolated lab you control.
 
 ## Generate the test events
 
-Run on the designated Windows test endpoint:
+Run on VICTIM-B, the Windows test endpoint:
 
 ```powershell
 .\password-spray-simulation.ps1 `
@@ -13,14 +12,14 @@ Run on the designated Windows test endpoint:
     -ConfirmIsolatedLab
 ```
 
-The required confirmation switch and private-address check are intentional
-safety controls. The script uses an incorrect password against the five
-purpose-built `spray.userNN` accounts. Expected output is Windows system error
-`1326` for each attempt.
+The script requires the confirmation switch and checks that the target has a
+private IP address. It tries an incorrect password against the five
+`spray.userNN` test accounts. Expect Windows system error `1326` for each attempt.
 
-## Validate containment
+## Check that the accounts are disabled
 
-Run on the domain controller after the Shuffle workflow completes:
+For a live test, approve the pending request on DC-01 and resend the same alert
+from Shuffle. After the responder reports verified success, run this on DC-01:
 
 ```powershell
 .\verify-disabled-users.ps1
@@ -29,7 +28,7 @@ Run on the domain controller after the Shuffle workflow completes:
 The test passes only when exactly five matching accounts are found and all are
 disabled.
 
-## Reset for another controlled test
+## Reset the accounts for another test
 
 Re-enable only the lab OU accounts from Administrator PowerShell:
 
