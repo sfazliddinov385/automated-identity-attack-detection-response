@@ -1,37 +1,27 @@
 # Lab test — September 17, 2026
 
 Responder revision: `c356035b4dd0851e72810dd557eb010b33e22bd5`.
-These notes use the terminal output, Shuffle results, and screenshots saved
-during the lab test. They document that test rather than a separate review of
-the VMs.
+
+These notes record what I tested and the results I saved from the terminal, Shuffle, and Splunk. They describe this lab run, not a separate inspection of the VMs.
 
 ## What happened
 
-- DC-01 forwarded fresh Windows logs into Splunk after the VM pause.
-- Five controlled failed logins from VICTIM-B (`192.168.226.133`) produced
-  a detection targeting `spray.user01` through `spray.user05`.
-- Shuffle webhook execution `9da05c60-44da-40a4-a4bb-5d8fd8c6fbb0`
-  began at 08:12:19 CDT. Its event time was 13:12:13.661 UTC and it
-  reported five failed attempts against five accounts. The responder returned
-  HTTP 200, `status=dry_run`, `verified=false`, with no changes reported.
-- After enabling live mode, the same alert was replayed at 08:25:05 CDT.
-  HTTP 202 returned `pending_approval` and reported no account changes.
-- `LAB\Administrator` approved the exact request at 13:26:06.8848109 UTC,
-  expiring at 13:41:06.8848109 UTC, with reason:
-  "Authorized lab test: disable the five spray.user test accounts".
-- The unchanged alert was replayed at 08:27:56 CDT. The response was HTTP 200,
-  `status=verified`, `success=true`, `verified=true`, `cached=false`,
-  `requested_accounts=5`, `verified_accounts=5`, and `needs_review=false`.
-  AD readback used `localhost`; verification time was
-  13:28:01.8534737 UTC.
+- After resuming the VMs, I confirmed that fresh Windows logs from DC-01 were reaching Splunk.
+- Five controlled failed logins from VICTIM-B (`192.168.226.133`) triggered a detection for `spray.user01` through `spray.user05`.
+- Shuffle received the alert in webhook execution `9da05c60-44da-40a4-a4bb-5d8fd8c6fbb0`, which started at 08:12:19 CDT. The alert's event time was 13:12:13.661 UTC, with five failed attempts against five accounts. The responder returned HTTP 200 with `status=dry_run` and `verified=false`, reporting no account changes.
+- After enabling live mode, I resent the same alert at 08:25:05 CDT. The responder returned HTTP 202 with `status=pending_approval` and reported no account changes.
+- I approved the request on DC-01 as `LAB\Administrator` at 13:26:06.8848109 UTC. The approval expired at 13:41:06.8848109 UTC. The reason was: "Authorized lab test: disable the five spray.user test accounts".
+- I resent the unchanged alert at 08:27:56 CDT. The responder returned HTTP 200 with `status=verified`, `success=true`, `verified=true`, `cached=false`, `requested_accounts=5`, `verified_accounts=5`, and `needs_review=false`. It checked AD through `localhost` and recorded the verification time as 13:28:01.8534737 UTC.
 
-Request ID throughout approval and live execution:
-`fa9bfbdcd86f6032565c2f928df5b5b2187bd57ab694b75f3e4786267c3e9162`.
+The approval and live response used the same request ID:
+
+```text
+fa9bfbdcd86f6032565c2f928df5b5b2187bd57ab694b75f3e4786267c3e9162
+```
 
 ## Windows audit events in Splunk
 
-The Splunk search used EventCode 4725 on `WIN-3B0FE43Q9UR`.
-Its results showed "A user account was disabled" for each target:
+I searched for EventCode 4725 on `WIN-3B0FE43Q9UR`. Splunk showed "A user account was disabled" for all five test accounts:
 
 | Target | Splunk displayed time (CDT) |
 | --- | --- |
@@ -41,55 +31,55 @@ Its results showed "A user account was disabled" for each target:
 | spray.user04 | 2026-09-17 08:28:01.785 |
 | spray.user05 | 2026-09-17 08:28:01.814 |
 
-The events show SYSTEM (SID `S-1-5-18`) and the DC machine account
-`WIN-3B0FE43Q9UR$` as the account that performed the action. The administrator who
-approved the request is recorded separately. `TargetUserName` and `SubjectUserName`
-were blank in the table, but the Message field contained those details. The
-Splunk check was manual; the responder checked AD automatically.
+The events identify SYSTEM through SID `S-1-5-18` and show the DC machine account, `WIN-3B0FE43Q9UR$`, as the account that made the changes. The administrator who approved the request is recorded separately in the response.
+
+The `TargetUserName` and `SubjectUserName` columns were blank, but the account details were present in the Message field.
+
+The responder checked AD automatically. I checked the audit events in Splunk manually.
 
 ## Screenshots
 
-These screenshots have not been edited. The Shuffle screenshots cut off part of
-the long request ID; the full ID above comes from the saved execution output.
+These are the original, unedited screenshots. The Shuffle captures cut off part of the request ID, so I included the full ID from the saved execution output above.
 
 ### Before approval
 
-The live responder returned HTTP 202 and reported no account changes before
-approval. `dry_run=false` distinguishes this from a preview. Shuffle's outer
-`success=true` describes the HTTP action, not completed containment.
+The responder was in live mode (`dry_run=false`) but returned HTTP 202 with `status=pending_approval`. It reported that no accounts had changed.
 
-![Live request pending local approval](../evidence/2026-09-17/01-pending-approval.png)
+Shuffle's outer `success=true` refers to the HTTP action. It does not mean the accounts were disabled.
+
+![Live request waiting for approval](../evidence/2026-09-17/01-pending-approval.png)
 
 ### After approval
 
-The response includes the approving operator, reason, and approval time, followed
-by five verified accounts. Individual account results are collapsed in this
-capture; the separate audit screenshot names all five affected accounts.
+The response shows who approved the request, their reason, and the approval time. It also confirms that all five accounts were verified as disabled.
 
-![Approved request with five verified accounts](../evidence/2026-09-17/02-approved-response.png)
+The individual account results are collapsed in this screenshot. The Splunk screenshot below shows all five usernames.
+
+![Approved response confirming five disabled accounts](../evidence/2026-09-17/02-approved-response.png)
 
 ### Account-disable events
 
-The messages show five account-disable events, their target users, SYSTEM actor,
-and timestamps matching the approved response. The screenshot is the results
-table; the EventCode 4725 filter was supplied in the search used for this check.
+The event messages show the five affected accounts, the SYSTEM identity that made the changes, and timestamps matching the approved response.
 
-![Five Windows account-disable events in Splunk](../evidence/2026-09-17/03-splunk-audit-4725.png)
+This screenshot shows the results table. The EventCode 4725 filter was part of the search used to produce it.
+
+![Five account-disable events in Splunk](../evidence/2026-09-17/03-splunk-audit-4725.png)
 
 ## Notes and untested cases
 
-The deployed Shuffle HTTP body was changed to `$exec` after an isolated action
-test returned "Missing alert field: detection" with the previous mapping.
-A subsequent action test succeeded. The successful approved full workflow run
-also contained the unchanged alert. Local approval and explicit resubmission
-are manual steps, not a native Shuffle approval/resume interface.
+During an individual action test, the previous HTTP body mapping returned "Missing alert field: detection". I changed the Shuffle HTTP body to `$exec`, and the next action test worked. The successful full workflow run also sent the unchanged original alert.
 
-This test covered approval and a successful account response. It did not cover
-forged approvals, wrong keys or source IPs, expired approvals, partial failures,
-crash recovery, or resending a completed request on the live VMs. There was no
-separate `Get-ADUser` output after the action; the saved evidence is the
-responder's AD check and the five Windows audit events.
+Approval still happens locally on DC-01, and the alert must be resent manually from Shuffle. There is no built-in Shuffle approval screen or automatic resume step in this setup.
 
-The lab still uses SYSTEM on the DC, internal HTTP, a narrow detection rule, and
-a connector that remembers only its last delivered alert. Those limits are
-described in the main README.
+This run tested a request waiting for approval, local approval, and a successful response. It did not test these cases on the live VMs:
+
+- Forged approvals.
+- Wrong response keys or unapproved source IPs.
+- Expired approvals.
+- Partial account-change failures.
+- Recovery after a crash.
+- Resending an already completed request.
+
+I did not save a separate `Get-ADUser` check after the response. The saved evidence consists of the responder's AD verification and the five Windows audit events in Splunk.
+
+The lab still runs the responder as SYSTEM on the DC, uses internal HTTP, and has a detection rule built around this specific test. The connector also remembers only its last delivered alert. These limits are covered in the main README.
